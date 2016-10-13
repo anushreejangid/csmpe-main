@@ -31,6 +31,8 @@ def parse_show_platform(ctx, output):
     :param output: output from 'show platform'
     :return: dictionary of nodes
 
+    Load for five secs: 1%/0%; one minute: 2%; five minutes: 2%
+    No time source, *22:40:38.097 UTC Wed Oct 12 2016
     Chassis type: ASR-920-12CZ-A
 
     Slot      Type                State                 Insert time (ago)
@@ -80,21 +82,22 @@ def parse_show_platform(ctx, output):
                 else:
                     continue
 
-            node = line[0:8]
-            node = node.strip()
-            node_type = line[9:28]
-            state = line[29:50]
-            state = state.strip()
-            config_state = line[51:60]
-            config_state = config_state.strip()
+            if slotcnt == 1:
+                node = line[0:8]
+                node = node.strip()
+                node_type = line[9:28]
+                state = line[29:50]
+                state = state.strip()
+                config_state = line[51:60]
+                config_state = config_state.strip()
 
-            # ctx.info("node={}, type={}, state={}".format(node, node_type, state))
+                # ctx.info("node={}, type={}, state={}".format(node, node_type, state))
 
-            entry = {
-                'type': node_type,
-                'state': state,
-                'config_state': config_state
-            }
-            inventory[node] = entry
+                entry = {
+                    'type': node_type,
+                    'state': state,
+                    'config_state': config_state
+                }
+                inventory[node] = entry
 
     return inventory
