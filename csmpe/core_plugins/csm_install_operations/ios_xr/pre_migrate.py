@@ -508,7 +508,7 @@ class Plugin(CSMPlugin):
         subtype_to_locations_need_upgrade = {}
 
         for fpdtype in FPDS_CHECK_FOR_UPGRADE:
-            match_iter = re.finditer(FPD_NODE + "[-.A-Z0-9a-z\s]*?" + fpdtype + "[-.A-Z0-9a-z\s]*?(No|Yes)", fpdtable)
+            match_iter = re.finditer(FPD_NODE + "[-.A-Z0-9a-z\s]*?\s+" + fpdtype + "\s+[-.A-Z0-9a-z\s]*?(No|Yes)", fpdtable)
 
             for match in match_iter:
                 if match.group(1) in nodes_to_check:
