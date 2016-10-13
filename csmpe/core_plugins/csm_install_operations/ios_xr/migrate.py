@@ -38,8 +38,10 @@ from csmpe.core_plugins.csm_install_operations.utils import update_device_info_u
 
 XR_PROMPT = re.compile('(\w+/\w+/\w+/\w+:.*?)(\([^()]*\))?#')
 
-SCRIPT_BACKUP_CONFIG = "harddiskb:/classic.cfg"
-SCRIPT_BACKUP_ADMIN_CONFIG = "harddiskb:/admin.cfg"
+SCRIPT_BACKUP_CONFIG_611_DOWN = "harddiskb:/classic.cfg"
+SCRIPT_BACKUP_CONFIG_612_UP = "harddiskb:/cXR_xr_plane.cfg"
+SCRIPT_BACKUP_ADMIN_CONFIG_611_DOWN = "harddiskb:/admin.cfg"
+SCRIPT_BACKUP_ADMIN_CONFIG_612_UP = "harddiskb:/cXR_admin_plane.cfg"
 
 MIGRATION_TIME_OUT = 3600
 NODES_COME_UP_TIME_OUT = 3600
@@ -107,19 +109,25 @@ class Plugin(CSMPlugin):
             if "No such file" in line:
                 self.ctx.error("Found file missing when running migration script. Please check session.log.")
             if "Error:" in line:
-                self.ctx.error("Migration script returned error. Please check session.log.")
+                self.ctx.error("Migration script reported error. Please check session.log.")
 
-        output = self.ctx.send('dir {}'.format(SCRIPT_BACKUP_CONFIG))
-        if "No such file" in output:
-            self.ctx.error("Migration script failed to back up the running config. Please check session.log.")
-        else:
-            log_and_post_status(self.ctx, "The running-config is backed up in {}".format(SCRIPT_BACKUP_CONFIG))
+        if not self._is_config_backed_up(SCRIPT_BACKUP_CONFIG_612_UP, "IOS-XR"):
+            if not self._is_config_backed_up(SCRIPT_BACKUP_CONFIG_611_DOWN, "IOS-XR"):
+                self.ctx.error("Migration script failed to back up the IOS-XR running config. " +
+                               "Please check session.log.")
 
-        output = self.ctx.send('dir {}'.format(SCRIPT_BACKUP_ADMIN_CONFIG))
+        if not self._is_config_backed_up(SCRIPT_BACKUP_ADMIN_CONFIG_612_UP, "admin"):
+            if not self._is_config_backed_up(SCRIPT_BACKUP_ADMIN_CONFIG_611_DOWN, "admin"):
+                self.ctx.error("Migration script failed to back up the admin running config. " +
+                               "Please check session.log.")
+
+    def _is_config_backed_up(self, config_filename, config_type):
+        output = self.ctx.send('dir {}'.format(config_filename))
         if "No such file" in output:
-            self.ctx.error("Migration script failed to back up the admin running config. Please check session.log.")
+            return False
         else:
-            log_and_post_status(self.ctx, "The admin running-config is backed up in {}".format(SCRIPT_BACKUP_CONFIG))
+            log_and_post_status(self.ctx, "The {} configurations are backed up in {}".format(config_type,
+                                                                                             config_filename))
 
     def _configure_authentication(self, host):
         """
@@ -222,7 +230,7 @@ class Plugin(CSMPlugin):
                             "Run migration script to extract the image and boot files and set boot mode in device")
         self._run_migration_script()
 
-        log_and_post_status(self.ctx, "Reload device to boot eXR")
+        log_and_post_status(self.ctx, "Reload device to boot ASR9K-64 image.")
         self._reload_all(host)
 
         try:
