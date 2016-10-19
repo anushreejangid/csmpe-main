@@ -125,9 +125,9 @@ class Plugin(CSMPlugin):
         output = self.ctx.send('dir {}'.format(config_filename))
         if "No such file" in output:
             return False
-        else:
-            log_and_post_status(self.ctx, "The {} configurations are backed up in {}".format(config_type,
-                                                                                             config_filename))
+        log_and_post_status(self.ctx, "The {} configurations are backed up in {}".format(config_type,
+                                                                                         config_filename))
+        return True
 
     def _configure_authentication(self, host):
         """
