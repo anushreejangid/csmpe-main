@@ -228,7 +228,7 @@ def install_add_remove(ctx, cmd, has_tar=False):
             ctx.operation_id = op_id
             ctx.info("The operation {} stored".format(op_id))
     else:
-        ctx.log_install_errors(output)
+        log_install_errors(ctx, output)
         ctx.error("Operation failed")
         return  # for sake of clarity
 
@@ -273,6 +273,6 @@ def install_activate_deactivate(ctx, cmd):
         ctx.info("Operation {} finished successfully".format(op_id))
         return
     else:
-        ctx.log_install_errors(output)
+        log_install_errors(ctx, output)
         ctx.error("Operation {} failed".format(op_id))
         return

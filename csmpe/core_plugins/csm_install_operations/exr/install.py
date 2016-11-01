@@ -245,7 +245,7 @@ def observe_install_add_remove(ctx, output, has_tar=False):
             ctx.operation_id = op_id
             ctx.info("The operation {} stored".format(op_id))
     else:
-        ctx.log_install_errors(output)
+        log_install_errors(ctx, output)
         ctx.error("Operation failed")
         return  # for sake of clarity
 
