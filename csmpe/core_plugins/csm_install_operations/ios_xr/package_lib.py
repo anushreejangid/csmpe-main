@@ -50,6 +50,10 @@ subversion_re = re.compile("(CSC|sp|fp).*(?P<SUBVERSION>\d+\.\d+\.\d+?)")
 
 class SoftwarePackage(object):
     def __init__(self, package_name):
+        # External Name: asr9k-asr9000v-nV-px.pie-6.1.2
+        # Internal Name: asr9k-9000v-nV-px-6.1.2
+        if 'asr9000v' in package_name:
+            package_name = package_name.replace('asr9000v', '9000v')
         self.package_name = package_name
 
     @property
