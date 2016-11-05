@@ -34,7 +34,7 @@ from uuid import uuid4
 
 install_requires = [
     "stevedore",
-    "pkginfo=1.3.2",
+    "pkginfo==1.3.2",
     "click",
     "condoor>=0.1.5",
     "sphinx",
