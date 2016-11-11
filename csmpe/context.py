@@ -31,10 +31,15 @@ import logging
 import os
 import re
 from time import time
+from distutils.version import StrictVersion
 
 import condoor
-
 from decorators import delegate
+
+if StrictVersion(condoor.__version__) >= StrictVersion('2.0.0'):
+    condoor_ng = True
+else:
+    condoor_ng = False
 
 
 class PluginError(Exception):
@@ -132,9 +137,13 @@ class PluginContext(object):
 
     def _device_detect(self):
         """Connect to device using condoor"""
-        self.info("Phase: Device Discovery")
-        self.post_status("Device Discovery")
-        self.discovery()
+        self.info("Phase: Connecting")
+        self.post_status("Connecting to device")
+        if condoor_ng:
+            self.connect()
+        else:
+            self.discovery()
+
         self.info("Hostname: {}".format(self._connection.hostname))
         self.info("Hardware family: {}".format(self._connection.family))
         self.info("Hardware platform: {}".format(self._connection.platform))

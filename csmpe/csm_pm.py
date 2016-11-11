@@ -32,7 +32,7 @@ from condoor import ConnectionError
 from stevedore.dispatch import DispatchExtensionManager
 from stevedore.exception import NoMatches
 
-from context import PluginContext
+from context import PluginContext, condoor_ng
 
 install_phases = ['Pre-Upgrade', 'Pre-Add', 'Add', 'Pre-Activate', 'Activate', 'Pre-Deactivate',
                   'Deactivate', 'Pre-Remove', 'Remove', 'Commit', 'Get-Inventory',
@@ -136,12 +136,13 @@ class CSMPluginManager(object):
         return self.get_package_metadata().keys()
 
     def dispatch(self, func):
-        try:
-            self._ctx.connect()
-        except ConnectionError as e:
-            self._ctx.post_status(e.message)
-            self._ctx.error(e.message)
-            return False
+        if not condoor_ng:
+            try:
+                self._ctx.connect()
+            except ConnectionError as e:
+                self._ctx.post_status(e.message)
+                self._ctx.error(e.message)
+                return False
 
         results = []
         current_phase = self._ctx.phase
@@ -165,7 +166,7 @@ class CSMPluginManager(object):
 
         self._ctx.current_plugin = None
         self._ctx.success = True
-        self._ctx.info("CSM Plugin Manager finished")
+        self._ctx.info("CSM Plugin Manager Finished")
         self._ctx.disconnect()
         return results
 
