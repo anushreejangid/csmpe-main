@@ -30,9 +30,9 @@ from csmpe.plugins import CSMPlugin
 class Plugin(CSMPlugin):
     """This plugin retrieves software information from the device."""
     name = "Get Inventory Plugin"
-    platforms = {'ASR9K', 'NCS1K', 'NCS5K', 'NCS5500', 'NCS6K', 'IOS-XRv'}
+    platforms = {'ASR900'}
     phases = {'Get-Inventory'}
-    os = {'eXR'}
+    os = {'IOS'}
 
     def run(self):
         get_package(self.ctx)
@@ -40,32 +40,14 @@ class Plugin(CSMPlugin):
 
 
 def get_inventory(ctx):
-    # Save the output of "show inventory" in admin mode
-    output = get_output_in_admin_mode(ctx, "show inventory")
+    # Save the output of "show inventory"
+    output = ctx.send("show inventory")
     ctx.save_data("cli_show_inventory", output)
 
 
 def get_package(ctx):
-    """
-    Convenient method, it may be called by outside of the plugin
-    """
+    ctx.save_data("cli_show_install_committed",
+                  ctx.send("show version | include ^System image"))
 
-    # Get the admin packages
-    ctx.save_data("cli_admin_show_install_inactive",
-                  get_output_in_admin_mode(ctx, "show install inactive"))
-    ctx.save_data("cli_admin_show_install_active",
-                  get_output_in_admin_mode(ctx, "show install active"))
-    ctx.save_data("cli_admin_show_install_committed",
-                  get_output_in_admin_mode(ctx, "show install committed"))
-
-    # Get the non-admin packages
-    ctx.save_data("cli_show_install_inactive", ctx.send("show install inactive"))
-    ctx.save_data("cli_show_install_active", ctx.send("show install active"))
-    ctx.save_data("cli_show_install_committed", ctx.send("show install committed"))
-
-
-def get_output_in_admin_mode(ctx, cmd):
-    ctx.send("admin")
-    output = ctx.send(cmd)
-    ctx.send("exit")
-    return output
+    ctx.send('cd flash:')
+    ctx.save_data("cli_show_install_inactive", ctx.send("dir"))
