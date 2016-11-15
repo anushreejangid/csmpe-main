@@ -32,6 +32,7 @@ class Plugin(CSMPlugin):
     name = "Get Inventory Plugin"
     platforms = {'ASR900'}
     phases = {'Get-Inventory'}
+    os = {'XE'}
 
     def run(self):
         get_package(self.ctx)
