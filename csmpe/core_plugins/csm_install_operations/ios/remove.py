@@ -25,47 +25,41 @@
 # =============================================================================
 
 from csmpe.plugins import CSMPlugin
+from csmpe.core_plugins.csm_get_inventory.ios.plugin import get_package, get_inventory
+from install import remove_exist_image
 
 
 class Plugin(CSMPlugin):
-    """This plugin retrieves software information from the device."""
-    name = "Get Inventory Plugin"
-    platforms = {'ASR9K', 'NCS1K', 'NCS5K', 'NCS5500', 'NCS6K', 'IOS-XRv'}
-    phases = {'Get-Inventory'}
-    os = {'eXR'}
+    """This plugin removes inactive packages from the device."""
+    name = "Install Remove Plugin"
+    platforms = {'ASR900'}
+    phases = {'Remove'}
+    os = {'IOS'}
 
     def run(self):
-        get_package(self.ctx)
-        get_inventory(self.ctx)
+        packages_to_remove = self.ctx.software_packages
+        if packages_to_remove is None:
+            self.ctx.error("No package list provided")
+            return
 
+        self.ctx.info("Remove Package(s) Pending")
+        self.ctx.post_status("Remove Package(s) Pending")
 
-def get_inventory(ctx):
-    # Save the output of "show inventory" in admin mode
-    output = get_output_in_admin_mode(ctx, "show inventory")
-    ctx.save_data("cli_show_inventory", output)
+        for pkg in packages_to_remove:
+            self.ctx.info("Delete package flash:{}".format(pkg))
 
+            package = 'flash:' + pkg
+            output = remove_exist_image(self.ctx, package)
 
-def get_package(ctx):
-    """
-    Convenient method, it may be called by outside of the plugin
-    """
+            if not output:
+                self.ctx.info("flash:{} Removal Failed".format(pkg))
+                break
+        else:
+            self.ctx.info("Package(s) Removed Successfully")
+            # Refresh package and inventory information
+            get_package(self.ctx)
+            get_inventory(self.ctx)
+            return
 
-    # Get the admin packages
-    ctx.save_data("cli_admin_show_install_inactive",
-                  get_output_in_admin_mode(ctx, "show install inactive"))
-    ctx.save_data("cli_admin_show_install_active",
-                  get_output_in_admin_mode(ctx, "show install active"))
-    ctx.save_data("cli_admin_show_install_committed",
-                  get_output_in_admin_mode(ctx, "show install committed"))
-
-    # Get the non-admin packages
-    ctx.save_data("cli_show_install_inactive", ctx.send("show install inactive"))
-    ctx.save_data("cli_show_install_active", ctx.send("show install active"))
-    ctx.save_data("cli_show_install_committed", ctx.send("show install committed"))
-
-
-def get_output_in_admin_mode(ctx, cmd):
-    ctx.send("admin")
-    output = ctx.send(cmd)
-    ctx.send("exit")
-    return output
+        self.ctx.error("Package(s) Removal Failed")
+        return

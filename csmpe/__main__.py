@@ -182,5 +182,6 @@ def plugin_run(url, phase, cmd, log_dir, package, repository_url, plugin_name):
     click.echo(" {} - device connection debug log".format(condoor_filename))
     click.echo("Results: {}".format(" ".join(map(str, results))))
 
+
 if __name__ == '__main__':
     cli()

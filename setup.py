@@ -70,6 +70,7 @@ setup(
             '{} = csmpe.core_plugins.csm_get_inventory.ios_xe.plugin:Plugin'.format(uuid4()),
             '{} = csmpe.core_plugins.csm_get_inventory.nx_os.plugin:Plugin'.format(uuid4()),
             '{} = csmpe.core_plugins.csm_get_inventory.exr.plugin:Plugin'.format(uuid4()),
+            '{} = csmpe.core_plugins.csm_get_inventory.ios.plugin:Plugin'.format(uuid4()),
 
             '{} = csmpe.core_plugins.csm_config_capture.plugin:Plugin'.format(uuid4()),
             '{} = csmpe.core_plugins.csm_custom_commands_capture.plugin:Plugin'.format(uuid4()),
@@ -112,6 +113,10 @@ setup(
             '{} = csmpe.core_plugins.csm_install_operations.ios_xe.pre_activate:Plugin'.format(uuid4()),
             '{} = csmpe.core_plugins.csm_install_operations.ios_xe.activate:Plugin'.format(uuid4()),
             '{} = csmpe.core_plugins.csm_install_operations.ios_xe.remove:Plugin'.format(uuid4()),
+
+            '{} = csmpe.core_plugins.csm_install_operations.ios.add:Plugin'.format(uuid4()),
+            '{} = csmpe.core_plugins.csm_install_operations.ios.activate:Plugin'.format(uuid4()),
+            '{} = csmpe.core_plugins.csm_install_operations.ios.remove:Plugin'.format(uuid4()),
         ],
     },
     classifiers=[

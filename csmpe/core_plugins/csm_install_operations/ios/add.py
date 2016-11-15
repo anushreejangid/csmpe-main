@@ -24,48 +24,49 @@
 # THE POSSIBILITY OF SUCH DAMAGE.
 # =============================================================================
 
+import re
 from csmpe.plugins import CSMPlugin
+from install import install_add_remove
+from csmpe.core_plugins.csm_get_inventory.ios.plugin import get_package, get_inventory
 
 
 class Plugin(CSMPlugin):
-    """This plugin retrieves software information from the device."""
-    name = "Get Inventory Plugin"
-    platforms = {'ASR9K', 'NCS1K', 'NCS5K', 'NCS5500', 'NCS6K', 'IOS-XRv'}
-    phases = {'Get-Inventory'}
-    os = {'eXR'}
+    """This plugin adds packages from repository to the device."""
+    name = "Install Add Plugin"
+    platforms = {'ASR900'}
+    phases = {'Add'}
+    os = {'IOS'}
 
     def run(self):
+        server_repository_url = self.ctx.server_repository_url
+
+        if server_repository_url is None:
+            self.ctx.error("No repository provided")
+            return
+
+        packages = self.ctx.software_packages
+        if packages is None:
+            self.ctx.error("No package list provided")
+            return
+
+        self.ctx.info("Add Package(s) Pending")
+        self.ctx.post_status("Add Package(s) Pending")
+
+        for package in packages:
+
+            output = self.ctx.send('dir flash:' + package)
+            m = re.search('No such file', output)
+
+            if not m:
+                self.ctx.info("No action: {} exists in flash:".format(package))
+                continue
+
+            cmd = "copy {}/{} flash:".format(server_repository_url, package)
+
+            install_add_remove(self.ctx, cmd)
+
+        self.ctx.info("Package(s) Added Successfully")
+
+        # Refresh package and inventory information
         get_package(self.ctx)
         get_inventory(self.ctx)
-
-
-def get_inventory(ctx):
-    # Save the output of "show inventory" in admin mode
-    output = get_output_in_admin_mode(ctx, "show inventory")
-    ctx.save_data("cli_show_inventory", output)
-
-
-def get_package(ctx):
-    """
-    Convenient method, it may be called by outside of the plugin
-    """
-
-    # Get the admin packages
-    ctx.save_data("cli_admin_show_install_inactive",
-                  get_output_in_admin_mode(ctx, "show install inactive"))
-    ctx.save_data("cli_admin_show_install_active",
-                  get_output_in_admin_mode(ctx, "show install active"))
-    ctx.save_data("cli_admin_show_install_committed",
-                  get_output_in_admin_mode(ctx, "show install committed"))
-
-    # Get the non-admin packages
-    ctx.save_data("cli_show_install_inactive", ctx.send("show install inactive"))
-    ctx.save_data("cli_show_install_active", ctx.send("show install active"))
-    ctx.save_data("cli_show_install_committed", ctx.send("show install committed"))
-
-
-def get_output_in_admin_mode(ctx, cmd):
-    ctx.send("admin")
-    output = ctx.send(cmd)
-    ctx.send("exit")
-    return output
