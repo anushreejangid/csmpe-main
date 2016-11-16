@@ -110,7 +110,7 @@ import re
 platforms = ['asr9k', 'ncs1k', 'ncs5k', 'ncs5500', 'ncs6k', 'xrv9k']
 
 
-version_dict = {"asr9k ncs1k ncs5k ncs5500":  # 61117I or 611 or 6.1.1.17I or 6.1.1
+version_dict = {"asr9k ncs1k ncs5k ncs5500 xrv9k":  # 61117I or 611 or 6.1.1.17I or 6.1.1
                 re.compile("(?P<VERSION>(\d+\d+\d+(\d+\w+)?)|(\d+\.\d+\.\d+(\.\d+\w+)?)(?!\.\d)(?!-))"),
                 "ncs6k":                      # 5.2.4 or 5.2.4.47I
                 re.compile("(?P<VERSION>\d+\.\d+\.\d+(\.\d+\w+)?)"),
@@ -202,7 +202,7 @@ class SoftwarePackage(object):
             dict_values = self.get_values(subversion_dict, self.platform)
             if self.platform and dict_values:
                 # For NCS6K, only need to consider subversion if it is a SMU.
-                if self.platform in ["asr9k", "ncs1k", "ncs5k", "ncs5500" "xrv9k"] or self.smu:
+                if self.platform in ["asr9k", "ncs1k", "ncs5k", "ncs5500", "xrv9k"] or self.smu:
                     to_match = self.package_name.replace(self.platform, '')
                     result = re.search(dict_values, to_match)
                     if result:
