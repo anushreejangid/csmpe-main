@@ -47,7 +47,8 @@ def is_empty(obj):
 
 
 def update_device_info_udi(ctx):
-    ctx._connection._update_device_info()
-    ctx._connection._update_udi()
+    # _update_device_info() and _update_udi() are removed in condoor-ng
+    # ctx._connection._update_device_info()
+    # ctx._connection._update_udi()
     ctx._csm.save_data("device_info", ctx._connection.device_info)
     ctx._csm.save_data("udi", ctx._connection.udi)
