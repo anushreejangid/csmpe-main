@@ -54,6 +54,9 @@ class SoftwarePackage(object):
         # Internal Name: asr9k-9000v-nV-px-6.1.2
         if 'asr9000v' in package_name:
             package_name = package_name.replace('asr9000v', '9000v')
+        elif 'services-infra-px' in package_name:
+            package_name = package_name.replace('-px', '')
+
         self.package_name = package_name
 
     @property
