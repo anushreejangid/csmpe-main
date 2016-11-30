@@ -46,20 +46,18 @@ class Plugin(CSMPlugin):
         packages = self.ctx.software_packages
         pkgs = SoftwarePackage.from_package_list(packages)
 
-        installed_inact = SoftwarePackage.from_show_cmd(self.ctx.send("admin show install inactive summary"))
         installed_act = SoftwarePackage.from_show_cmd(self.ctx.send("admin show install active summary"))
 
-        # Packages in to deactivate but not inactive
-        packages_to_deactivate = pkgs - installed_inact
-
-        if packages_to_deactivate:
-            packages_to_deactivate = packages_to_deactivate & installed_act  # packages to be deactivated and installed active packages
+        if pkgs:
+            # packages to be deactivated must be active packages
+            packages_to_deactivate = pkgs & installed_act
             if not packages_to_deactivate:
                 to_deactivate = " ".join(map(str, pkgs))
 
-                state_of_packages = "\nTo deactivate :{} \nInactive: {} \nActive: {}".format(
-                    to_deactivate, installed_inact, installed_act
+                state_of_packages = "\nTo deactivate :{} \nActive: {}".format(
+                    to_deactivate, installed_act
                 )
+
                 self.ctx.info(state_of_packages)
                 self.ctx.error('To be deactivated packages not in inactive packages list.')
                 return None
