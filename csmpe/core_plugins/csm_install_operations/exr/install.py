@@ -135,7 +135,7 @@ def watch_operation(ctx, op_id=0):
             time_tried += 1
             ctx.disconnect()
             time.sleep(60)
-            ctx.reconnect()
+            ctx.reconnect(force_discovery=True)
 
         if no_install in output:
             break
@@ -176,7 +176,7 @@ def wait_for_reload(ctx):
     ctx.post_status("Device or sdr is reloading...")
     ctx.disconnect()
     time.sleep(60)
-    ctx.reconnect(max_timeout=1500)  # 25 * 60 = 1500
+    ctx.reconnect(max_timeout=1500, force_discovery=True)  # 25 * 60 = 1500
 
     timeout = 3600
     poll_time = 30
