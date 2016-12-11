@@ -119,7 +119,7 @@ def get_output_in_admin_mode(ctx, cmd, admin=True):
         ctx.send("exit")
 
     if 'Please try command later' in output:
-        ctx.warning("The command {} is not ready after 10 minutes. Please manually ",
-                    "retrieve latest software from the Host dashboard".format(command))
+        ctx.warning('The command {} is not ready after 10 minutes. Please manually '
+                    'retrieve latest software from the Host dashboard'.format(command))
 
     return output
