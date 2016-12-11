@@ -69,6 +69,36 @@ def get_package(ctx):
 
 
 def get_output_in_admin_mode(ctx, cmd, admin=True):
+    """
+    :param ctx:
+    :param cmd:
+    :param admin: True - Calvados, False - xr
+    :return: cmd ouput
+
+    Polling as a workaround when the router cmd is not ready:
+
+    RP/0/RP0/CPU0:xrg-ncs-2#show install active
+    Node 0/0/CPU0
+    Node unresponsive (possible ongoing install operation).
+    Please try command later
+
+    Node 0/2/CPU0
+    Node unresponsive (possible ongoing install operation).
+    Please try command later
+
+    Node 0/3/CPU0
+    Node unresponsive (possible ongoing install operation).
+    Please try command later
+
+    Node 0/RP0/CPU0
+    Node unresponsive (possible ongoing install operation).
+    Please try command later
+
+    Node 0/RP1/CPU0
+    Node unresponsive (possible ongoing install operation).
+    Please try command later
+    """
+
     if admin:
         command = 'admin ' + cmd
         ctx.send("admin")
@@ -89,8 +119,7 @@ def get_output_in_admin_mode(ctx, cmd, admin=True):
         ctx.send("exit")
 
     if 'Please try command later' in output:
-        ctx.warning("The command {} is not ready after 10 minutes.")
-        ctx.error("The command {} is not ready after 10 minutes. ",
-                  "Please see plugins.log and sessiong.log.".format(command))
+        ctx.warning("The command {} is not ready after 10 minutes. Please manually ",
+                    "retrieve latest software from the Host dashboard".format(command))
 
     return output
