@@ -24,6 +24,7 @@
 # THE POSSIBILITY OF SUCH DAMAGE.
 # =============================================================================
 
+import time
 from csmpe.plugins import CSMPlugin
 
 
@@ -59,13 +60,37 @@ def get_package(ctx):
                   get_output_in_admin_mode(ctx, "show install committed"))
 
     # Get the non-admin packages
-    ctx.save_data("cli_show_install_inactive", ctx.send("show install inactive"))
-    ctx.save_data("cli_show_install_active", ctx.send("show install active"))
-    ctx.save_data("cli_show_install_committed", ctx.send("show install committed"))
+    ctx.save_data("cli_show_install_inactive",
+                  get_output_in_admin_mode(ctx, "show install inactive", admin=False))
+    ctx.save_data("cli_show_install_active",
+                  get_output_in_admin_mode(ctx, "show install active", admin=False))
+    ctx.save_data("cli_show_install_committed",
+                  get_output_in_admin_mode(ctx, "show install committed", admin=False))
 
 
-def get_output_in_admin_mode(ctx, cmd):
-    ctx.send("admin")
+def get_output_in_admin_mode(ctx, cmd, admin=True):
+    if admin:
+        command = 'admin ' + cmd
+        ctx.send("admin")
+    else:
+        command = cmd
+
+    x = 0
     output = ctx.send(cmd)
-    ctx.send("exit")
+    while x < 60:
+        if 'Please try command later' in output:
+            x += 1
+            time.sleep(10)
+            output = ctx.send(cmd)
+        else:
+            break
+
+    if admin:
+        ctx.send("exit")
+
+    if 'Please try command later' in output:
+        ctx.warning("The command {} is not ready after 10 minutes.")
+        ctx.error("The command {} is not ready after 10 minutes. ",
+                  "Please see plugins.log and sessiong.log.".format(command))
+
     return output
