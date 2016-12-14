@@ -140,7 +140,10 @@ class PluginContext(object):
         self.info("Phase: Connecting")
         self.post_status("Connecting to device")
         if condoor_ng:
-            self.connect()
+            if self.phase in ["Get-Inventory", "Post-Upgrade"]:
+                self.connect(force_discovery=True)
+            else:
+                self.connect()
         else:
             self.discovery()
 
