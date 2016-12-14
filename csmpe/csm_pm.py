@@ -89,7 +89,7 @@ class CSMPluginManager(object):
             }
 
     def _filter_func(self, ext, *args, **kwargs):
-        if self._platform and self._platform not in ext.plugin.platforms:
+        if self._platform and bool(ext.plugin.platforms) and self._platform not in ext.plugin.platforms:
             return False
         if self._phase and self._phase not in ext.plugin.phases:
             return False
