@@ -51,6 +51,7 @@ class InstallContext(object):
 
     def __init__(self):
         self.hostname = "Hostname"
+        self._custom_commands = []
 
     def post_status(self, message):
         print("[CSM Status] {}".format(message))
@@ -65,8 +66,13 @@ class InstallContext(object):
 
     @property
     def custom_commands(self):
-        return ["show isis neighbor", "show ospf neighbor", "show bgp summary", "show install inactive summary",
-                "show install active summary"]
+        return self._custom_commands
+
+    @custom_commands.setter
+    def custom_commands(self, value):
+        if isinstance(value, str):
+            value = list(value)
+        self._custom_commands = value
 
 
 class Host(object):
