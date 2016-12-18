@@ -69,7 +69,7 @@ def wait_for_reload(ctx):
     ctx.disconnect()
     time.sleep(180)
 
-    ctx.reconnect(max_timeout=1500)  # 25 * 60 = 1500
+    ctx.reconnect(max_timeout=1500, force_discovery=True)  # 25 * 60 = 1500
     timeout = 3600
     poll_time = 30
     time_waited = 0
