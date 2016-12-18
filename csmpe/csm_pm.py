@@ -142,6 +142,7 @@ class CSMPluginManager(object):
             except ConnectionError as e:
                 self._ctx.post_status(e.message)
                 self._ctx.error(e.message)
+                self._ctx.disconnect()
                 return False
 
         results = []

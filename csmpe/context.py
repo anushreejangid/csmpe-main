@@ -145,13 +145,18 @@ class PluginContext(object):
         """Connect to device using condoor"""
         self.info("Phase: Connecting")
         self.post_status("Connecting to device")
-        if condoor_ng:
-            if self.phase in ["Get-Inventory", "Post-Upgrade"]:
-                self.connect(force_discovery=True)
+        try:
+            if condoor_ng:
+                if self.phase in ["Get-Inventory", "Post-Upgrade"]:
+                    self.connect(force_discovery=True)
+                else:
+                    self.connect()
             else:
-                self.connect()
-        else:
-            self.discovery()
+                self.discovery()
+        except condoor.ConnectionError as e:
+            self.error("Connection error: {}".format(str(e)))
+            self.disconnect()
+            raise e
 
         self.info("Hostname: {}".format(self._connection.hostname))
         self.info("Hardware family: {}".format(self._connection.family))
@@ -173,9 +178,8 @@ class PluginContext(object):
     def error(self, message):
         """Log ERROR message"""
         self._logger.error(self._format_log(message))
-        self._connection.disconnect()
+        self.disconnect()
         raise PluginError
-        pass
 
     def warning(self, message):
         """Log WARNING message"""
