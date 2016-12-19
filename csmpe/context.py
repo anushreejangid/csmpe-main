@@ -98,6 +98,7 @@ class PluginContext(object):
                 log_dir=self._csm.log_directory
             )
             self._set_logging(hostname=self._csm.hostname, log_dir=self._csm.log_directory, log_level=logging.DEBUG)
+            self._connection.msg_callback = self.info
             self._device_detect()
         else:
             self._connection = None
