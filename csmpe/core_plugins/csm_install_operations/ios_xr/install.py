@@ -129,10 +129,23 @@ def wait_for_reload(ctx):
      Wait for system to come up with max timeout as 25 Minutes
 
     """
-    ctx.disconnect()
-    time.sleep(60)
+    begin = time.time()
+    if not ctx.is_console:
+        ctx.disconnect()
+        ctx.post_status("Waiting for device boot to reconnect")
+        ctx.info("Waiting for device boot to reconnect")
+        time.sleep(60)
+        ctx.reconnect(max_timeout=1500, force_discovery=True)  # 25 * 60 = 1500
 
-    ctx.reconnect(max_timeout=1500, force_discovery=True)  # 25 * 60 = 1500
+    else:
+        ctx.info("Keeping console connected")
+        ctx.post_status("Boot process started")
+        ctx.info("Boot process started")
+        ctx.reload(reload_timeout=1500, no_reload_cmd=True)
+        ctx.info("Boot process finished")
+
+    ctx.info("Device connected successfully")
+
     timeout = 3600
     poll_time = 30
     time_waited = 0
@@ -157,7 +170,9 @@ def wait_for_reload(ctx):
         if xr_run in output:
             inventory = parse_show_platform(ctx, output)
             if validate_node_state(inventory):
-                ctx.info("All nodes in desired state")
+                ctx.info("All nodes in operational state")
+                elapsed = time.time() - begin
+                ctx.info("Overall outage time: {} minute(s) {:.0f} second(s)".format(elapsed // 60, elapsed % 60))
                 return True
 
     # Some nodes did not come to run state
