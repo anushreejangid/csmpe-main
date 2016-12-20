@@ -83,7 +83,7 @@ class Host(object):
                                      "software_packages", "hostname", "log_directory", "migration_directory",
                                      "get_server", "get_host"))
 @delegate("_connection", ("connect", "disconnect", "reconnect", "discovery", "send", "run_fsm", "reload"),
-          ("family", "prompt", "os_type", "os_version"))
+          ("family", "prompt", "os_type", "os_version", "is_console"))
 class PluginContext(object):
     """ This is a class passed to the constructor during plugin instantiation.
     Thi class provides the API for the plugins to allow the communication with the CMS Server and device.
@@ -98,11 +98,16 @@ class PluginContext(object):
                 log_dir=self._csm.log_directory
             )
             self._set_logging(hostname=self._csm.hostname, log_dir=self._csm.log_directory, log_level=logging.DEBUG)
-            self._connection.msg_callback = self.info
+            self._connection.msg_callback = self._post_and_log
             self._device_detect()
         else:
             self._connection = None
             self._set_logging()
+
+    def _post_and_log(self, message):
+        self.info(message)
+        self.post_status(message)
+        return
 
     def _set_logging(self, hostname="host", log_dir=None, log_level=logging.NOTSET):
         self._logger = logging.getLogger("{}.plugin_manager".format(hostname))
