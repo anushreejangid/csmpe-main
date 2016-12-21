@@ -124,7 +124,8 @@ class Plugin(CSMPlugin):
         install_activate_deactivate(self.ctx, cmd)
 
         self.ctx.info("Activate package(s) done")
-
+        self.ctx.info("Refreshing package and inventory information")
+        self.ctx.post_status("Refreshing package and inventory information")
         # Refresh package and inventory information
         get_package(self.ctx)
         get_inventory(self.ctx)

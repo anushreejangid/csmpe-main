@@ -24,10 +24,13 @@
 # ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF
 # THE POSSIBILITY OF SUCH DAMAGE.
 # =============================================================================
+from functools import partial
+import itertools
 import re
 import time
 from condoor import ConnectionError
 from csmpe.core_plugins.csm_node_status_check.exr.plugin_lib import parse_show_platform
+from csmpe.core_plugins.csm_install_operations.actions import a_error
 
 install_error_pattern = re.compile("Error:    (.*)$", re.MULTILINE)
 
@@ -105,6 +108,8 @@ def watch_operation(ctx, op_id=0):
     cmd_show_install_request = "show install request"
     ctx.info("Watching the operation {} to complete".format(op_id))
 
+    propeller = itertools.cycle(["|", "/", "-", "\\", "|", "/", "-", "\\"])
+
     last_status = None
     finish = False
     time_tried = 0
@@ -123,7 +128,7 @@ def watch_operation(ctx, op_id=0):
                 result = re.search(op_progress, output)
                 if result:
                     status = result.group(0)
-                    message = "{}".format(status)
+                    message = "{} {}".format(propeller.next(), status)
 
                 if message != last_status:
                     ctx.post_status(message)
@@ -172,11 +177,22 @@ def wait_for_reload(ctx):
      Wait for system to come up with max timeout as 25 Minutes
 
     """
-    ctx.info("Device or sdr is reloading.")
-    ctx.post_status("Device or sdr is reloading...")
-    ctx.disconnect()
-    time.sleep(60)
-    ctx.reconnect(max_timeout=1500, force_discovery=True)  # 25 * 60 = 1500
+    begin = time.time()
+    if not ctx.is_console:
+        ctx.disconnect()
+        ctx.post_status("Waiting for device boot to reconnect")
+        ctx.info("Waiting for device boot to reconnect")
+        time.sleep(60)
+        ctx.reconnect(max_timeout=1500, force_discovery=True)  # 25 * 60 = 1500
+
+    else:
+        ctx.info("Keeping console connected")
+        ctx.post_status("Boot process started")
+        ctx.info("Boot process started")
+        ctx.reload(reload_timeout=1500, no_reload_cmd=True)
+        ctx.info("Boot process finished")
+
+    ctx.info("Device connected successfully")
 
     timeout = 3600
     poll_time = 30
@@ -201,6 +217,8 @@ def wait_for_reload(ctx):
             inventory = parse_show_platform(output)
             if validate_node_state(inventory):
                 ctx.info("All nodes in desired state")
+                elapsed = time.time() - begin
+                ctx.info("Overall outage time: {} minute(s) {:.0f} second(s)".format(elapsed // 60, elapsed % 60))
                 return True
 
     # Some nodes did not come to run state
@@ -415,8 +433,6 @@ def install_activate_deactivate(ctx, cmd):
 
     RP/0/RSP0/CPU0:ios#Jun 09 15:53:51 Install operation 27 finished successfully
 
-
-
     """
     global plugin_ctx
     plugin_ctx = ctx
@@ -425,23 +441,24 @@ def install_activate_deactivate(ctx, cmd):
 
     # Seeing this message without the reboot prompt indicates a non-reload situation
     CONTINUE_IN_BACKGROUND = re.compile("Install operation will continue in the background")
-
     REBOOT_PROMPT = re.compile("This install operation will (?:reboot|reload) the sdr, continue")
-
     RUN_PROMPT = re.compile("#")
-
     NO_IMPACT = re.compile("NO IMPACT OPERATION")
+    ERROR = re.compile(re.escape("ERROR! there was an SU/ISSU done. please perform install commit before "
+                                 "proceeding with any other prepare/activate/deactivate operation"))
 
-    events = [CONTINUE_IN_BACKGROUND, REBOOT_PROMPT, ABORTED, NO_IMPACT, RUN_PROMPT]
+    #                  0                    1           2         3          4         5
+    events = [CONTINUE_IN_BACKGROUND, REBOOT_PROMPT, ABORTED, NO_IMPACT, RUN_PROMPT, ERROR]
     transitions = [
         (CONTINUE_IN_BACKGROUND, [0], -1, handle_non_reload_activate_deactivate, 100),
         (REBOOT_PROMPT, [0], -1, handle_reload_activate_deactivate, 100),
         (NO_IMPACT, [0], -1, no_impact_warning, 20),
         (RUN_PROMPT, [0], -1, handle_non_reload_activate_deactivate, 100),
         (ABORTED, [0], -1, handle_aborted, 100),
+        (ERROR, [0], -1, partial(a_error, ctx), 0),
     ]
 
-    if not ctx.run_fsm("activate or deactivate", cmd, events, transitions, timeout=100):
+    if not ctx.run_fsm("ACTIVATE-OR-DEACTIVATE", cmd, events, transitions, timeout=100):
         ctx.error("Failed: {}".format(cmd))
 
 
