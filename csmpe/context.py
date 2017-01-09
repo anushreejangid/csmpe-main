@@ -31,14 +31,17 @@ import logging
 import os
 import re
 from time import time
-from distutils.version import StrictVersion
+from pkg_resources import parse_version
 
 import condoor
 from decorators import delegate
 
-if StrictVersion(condoor.__version__) >= StrictVersion('2.0.0'):
-    condoor_ng = True
-else:
+try:
+    if parse_version(condoor.__version__).base_version >= parse_version('1.0.0'):
+        condoor_ng = True
+    else:
+        condoor_ng = False
+except Exception:
     condoor_ng = False
 
 
