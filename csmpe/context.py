@@ -41,9 +41,7 @@ try:
         condoor_ng = True
     else:
         condoor_ng = False
-        print("BBB")
 except Exception:
-    print "DUPA"
     condoor_ng = False
 
 
