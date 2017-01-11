@@ -37,11 +37,13 @@ import condoor
 from decorators import delegate
 
 try:
-    if parse_version(condoor.__version__).base_version >= parse_version('1.0.0'):
+    if parse_version(parse_version(condoor.__version__).base_version) >= parse_version('1.0.0'):
         condoor_ng = True
     else:
         condoor_ng = False
+        print("BBB")
 except Exception:
+    print "DUPA"
     condoor_ng = False
 
 
