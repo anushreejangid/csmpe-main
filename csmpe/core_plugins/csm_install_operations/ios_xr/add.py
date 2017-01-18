@@ -38,6 +38,36 @@ class Plugin(CSMPlugin):
     phases = {'Add'}
     os = {'XR'}
 
+    def install_add(self, server_repository_url, s_packages, has_tar=False):
+        if server_repository_url.startswith("scp"):
+            # scp username:password@x.x.x.x:/home_directory destination_on_host
+            scp_username_and_password, sep, server_and_directory_and_destination = server_repository_url.partition('@')
+            # scp_username_and_password = 'scp username:password', sep = '@',
+            # server_ip_and_directory = 'x.x.x.x:/home_directory destination_on_host'
+            if not scp_username_and_password or not sep or not server_and_directory_and_destination:
+                self.ctx.error("Check if the SCP server repository is configured correctly on CSM Server.")
+
+            scp_username, sep, scp_password = scp_username_and_password.partition(':')
+            if not scp_username or not sep or not scp_password:
+                self.ctx.error("Check if the SCP server repository is configured correctly on CSM Server.")
+
+            server_and_directory, sep, destination_on_host = server_and_directory_and_destination.partition(' ')
+            if not server_and_directory or not sep or not destination_on_host:
+                self.ctx.error("Check if the SCP server repository is configured correctly on CSM Server.")
+
+            # scp username:@x.x.x.x:/home_directory
+            url = scp_username + '@' + server_and_directory
+            for package in s_packages.split():
+                cmd = "{}/{} {}".format(url, package, destination_on_host)
+                output1 = self.ctx.send(cmd, wait_for_string="[Pp]assword:", timeout=60)
+                output2 = self.ctx.send(scp_password, timeout=100)
+
+            cmd = "admin install add source {} {} async".format(destination_on_host, s_packages)
+        else:
+            cmd = "admin install add source {} {} async".format(server_repository_url, s_packages)
+
+        install_add_remove(self.ctx, cmd, has_tar=has_tar)
+
     def run(self):
         server_repository_url = self.ctx.server_repository_url
 
@@ -60,12 +90,10 @@ class Plugin(CSMPlugin):
         if not s_packages:
             self.ctx.error("None of the selected package(s) has an acceptable file extension.")
 
-        cmd = "admin install add source {} {} async".format(server_repository_url, s_packages)
-
         self.ctx.info("Add Package(s) Pending")
         self.ctx.post_status("Add Package(s) Pending")
 
-        install_add_remove(self.ctx, cmd, has_tar=has_tar)
+        self.install_add(server_repository_url, s_packages, has_tar=has_tar)
 
         self.ctx.info("Package(s) Added Successfully")
 

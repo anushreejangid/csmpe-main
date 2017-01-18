@@ -69,6 +69,32 @@ class Plugin(CSMPlugin):
             output1 = self.ctx.send(cmd, wait_for_string="[Pp]assword:", timeout=60)
             output2 = self.ctx.send(end[0], timeout=100)
             output = output1 + output2
+
+        elif server_repository_url.startswith("scp"):
+            # scp username:password@x.x.x.x:/home_directory destination_on_host
+            scp_username_and_password, sep, server_and_directory_and_destination = server_repository_url.partition('@')
+            # scp_username_and_password = 'scp username:password', sep = '@',
+            # server_ip_and_directory = 'x.x.x.x:/home_directory destination_on_host'
+            if not scp_username_and_password or not sep or not server_and_directory_and_destination:
+                self.ctx.error("Check if the SCP server repository is configured correctly on CSM Server.")
+
+            scp_username, sep, scp_password = scp_username_and_password.partition(':')
+            if not scp_username or not sep or not scp_password:
+                self.ctx.error("Check if the SCP server repository is configured correctly on CSM Server.")
+
+            server_and_directory, sep, destination_on_host = server_and_directory_and_destination.partition(' ')
+            if not server_and_directory or not sep or not destination_on_host:
+                self.ctx.error("Check if the SCP server repository is configured correctly on CSM Server.")
+
+            # scp username:@x.x.x.x:/home_directory
+            url = scp_username + '@' + server_and_directory
+            for package in s_packages.split():
+                cmd = "{}/{} {}".format(url, package, destination_on_host)
+                output1 = self.ctx.send(cmd, wait_for_string="[Pp]assword:", timeout=60)
+                output2 = self.ctx.send(scp_password, timeout=100)
+
+            cmd = "install add source {} {}".format(destination_on_host, s_packages)
+            output = self.ctx.send(cmd, timeout=100)
         else:
             cmd = "install add source {} {}".format(server_repository_url, s_packages)
             output = self.ctx.send(cmd, timeout=100)
