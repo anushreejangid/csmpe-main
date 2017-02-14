@@ -28,6 +28,7 @@
 # =============================================================================
 
 import pkginfo
+from condoor import ConnectionError
 from stevedore.dispatch import DispatchExtensionManager
 from stevedore.exception import NoMatches
 
