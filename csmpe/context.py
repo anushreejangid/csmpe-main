@@ -31,18 +31,9 @@ import logging
 import os
 import re
 from time import time
-from pkg_resources import parse_version
 
 import condoor
 from decorators import delegate
-
-try:
-    if parse_version(parse_version(condoor.__version__).base_version) >= parse_version('1.0.0'):
-        condoor_ng = True
-    else:
-        condoor_ng = False
-except Exception:
-    condoor_ng = False
 
 
 class PluginError(Exception):
@@ -154,18 +145,11 @@ class PluginContext(object):
         """Connect to device using condoor"""
         self.info("Phase: Connecting")
         self.post_status("Connecting to device")
-        try:
-            if condoor_ng:
-                if self.phase in ["Get-Inventory", "Post-Upgrade"]:
-                    self.connect(force_discovery=True)
-                else:
-                    self.connect()
-            else:
-                self.discovery()
-        except condoor.ConnectionError as e:
-            self.error("Connection error: {}".format(str(e)))
-            self.disconnect()
-            raise e
+
+        if self.phase in ["Get-Inventory", "Post-Upgrade"]:
+            self.connect(force_discovery=True)
+        else:
+            self.connect()
 
         self.info("Hostname: {}".format(self._connection.hostname))
         self.info("Hardware family: {}".format(self._connection.family))

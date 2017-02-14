@@ -59,8 +59,6 @@ class Plugin(CSMPlugin):
             url = scp_username + '@' + server_and_directory
             for package in s_packages.split():
                 cmd = "{}/{} {}".format(url, package, destination_on_host)
-                output1 = self.ctx.send(cmd, wait_for_string="[Pp]assword:", timeout=60)
-                output2 = self.ctx.send(scp_password, timeout=100)
 
             cmd = "admin install add source {} {} async".format(destination_on_host, s_packages)
         else:
