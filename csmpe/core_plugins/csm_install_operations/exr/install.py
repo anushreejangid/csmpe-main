@@ -28,7 +28,7 @@ from functools import partial
 import itertools
 import re
 import time
-from condoor import ConnectionError
+from condoor import ConnectionError, CommandError
 from csmpe.core_plugins.csm_node_status_check.exr.plugin_lib import parse_show_platform
 from csmpe.core_plugins.csm_install_operations.actions import a_error
 
@@ -468,3 +468,116 @@ def send_admin_cmd(ctx, cmd):
     ctx.send("exit")
 
     return output
+
+
+def observe_install_remove_all(ctx, cmd, prompt):
+    """
+    Success Condition:
+    RP/0/RSP0/CPU0:vkg3#install remove inactive all
+    Mar 01 16:17:13 Install operation 15 started by root:
+      install remove inactive all
+    Mar 01 16:17:14 Install operation will continue in the background
+    RP/0/RSP0/CPU0:vkg3#Mar 01 16:17:18 Install operation 15 finished successfully
+
+    Failed Conditions:
+    RP/0/RSP0/CPU0:vkg3#install remove inactive all
+    Mar 01 21:31:22 Install operation 17 started by root:
+      install remove inactive all
+    Mar 01 21:31:24 Install operation will continue in the background
+    RP/0/RSP0/CPU0:vkg3#Mar 01 21:31:25 Install operation 17 aborted
+
+    RP/0/RSP0/CPU0:vkg3#install remove inactive all
+    Could not start this install operation. Install operation 18 is still in progress
+    """
+    # no op_id is returned from XR for install remove inactive
+    # need to figure out the last op_id first
+
+    cmd_show_install_log_reverse = 'show install log reverse | utility egrep "Install operation [0-9]+ started"'
+    output = ctx.send(cmd_show_install_log_reverse, timeout=300)
+
+    if 'No install operation' in output:
+        op_id = 0
+    else:
+        result = re.search('Install operation (\d+) started', output)
+        if result:
+            op_id = int(result.group(1))
+        else:
+            log_install_errors(ctx, output)
+            ctx.error("Operation ID not found by show install log reverse")
+            return
+
+    # Expected Operation ID
+    op_id += 1
+
+    oper_err = "Install operation {} aborted".format(op_id)
+    oper_success = "Install operation {} finished successfully".format(op_id)
+    Error1 = re.compile("Could not start this install operation. Install operation")
+    Error2 = re.compile(oper_err)
+    Proceed_removing = re.compile(oper_success)
+    Host_prompt = re.compile(prompt)
+
+    events = [Host_prompt, Error1, Error2, Proceed_removing]
+    transitions = [
+        (Error1, [0], -1, CommandError("Another install command is currently in operation",
+                                       ctx._connection.hostname), 1800),
+        (Error2, [0], -1, CommandError("No packages can be removed", ctx._connection.hostname), 1800),
+        (Proceed_removing, [0], -1, None, 1800),
+        (Host_prompt, [0], -1, None, 1800),
+    ]
+
+    if not ctx.run_fsm("Remove Inactive All", cmd, events, transitions, timeout=1800):
+        ctx.error("Failed: {}".format(cmd))
+
+    message = "Waiting the operation to continue asynchronously"
+    ctx.info(message)
+    ctx.post_status(message)
+
+    last_status = None
+    no_install = r"No install operation in progress"
+    op_progress = r"The install operation {} is (\d+)% complete".format(op_id)
+    cmd_show_install_request = "show install request"
+    propeller = itertools.cycle(["|", "/", "-", "\\", "|", "/", "-", "\\"])
+
+    finish = False
+    time_tried = 0
+    op_id = str(op_id)
+    while not finish:
+        try:
+            try:
+                # this is to catch the successful operation as soon as possible
+                ctx.send("", wait_for_string=oper_success, timeout=20)
+                finish = True
+            except ctx.CommandTimeoutError:
+                pass
+
+            message = ""
+            output = ctx.send(cmd_show_install_request, timeout=300)
+            if op_id in output:
+                result = re.search(op_progress, output)
+                if result:
+                    status = result.group(0)
+                    message = "{} {}".format(propeller.next(), status)
+
+                if message != last_status:
+                    ctx.post_status(message)
+                    last_status = message
+        except (ConnectionError, ctx.CommandTimeoutError) as e:
+            if time_tried > 120:
+                raise e
+
+            time_tried += 1
+            time.sleep(30)
+
+        if no_install in output:
+            break
+
+    cmd_show_install_log = "show install log {} detail".format(op_id)
+    output = ctx.send(cmd_show_install_log, timeout=600)
+    ctx.info(output)
+
+    if oper_success in output:
+        message = "Install Remove All completed successfully"
+        ctx.info(message)
+        ctx.post_status(message)
+    else:
+        ctx.error("Install Remove All has failed")

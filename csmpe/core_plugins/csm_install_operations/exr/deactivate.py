@@ -35,7 +35,7 @@ from csmpe.core_plugins.csm_get_inventory.exr.plugin import get_package, get_inv
 class Plugin(CSMPlugin):
     """This plugin deactivates packages on the device."""
     name = "Install Deactivate Plugin"
-    platforms = {'ASR9K', 'NCS1K', 'NCS5K', 'NCS5500', 'NCS6K', 'IOS-XRv'}
+    platforms = {'ASR9K', 'NCS1K', 'NCS5K', 'NCS5500', 'NCS6K', 'IOS-XRv', 'NCS4K'}
     phases = {'Deactivate'}
     os = {'eXR'}
 

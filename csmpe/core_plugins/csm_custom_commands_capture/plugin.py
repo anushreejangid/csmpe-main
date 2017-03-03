@@ -33,7 +33,7 @@ from condoor.exceptions import CommandSyntaxError
 class Plugin(CSMPlugin):
     """This plugin captures custom commands and stores in the log directory."""
     name = "Custom Commands Capture Plugin"
-    platforms = {'ASR9K', 'CRS', 'NCS1K', 'NCS5K', 'NCS5500', 'NCS6K', 'ASR900', 'N6K', 'IOS-XRv'}
+    platforms = {'ASR9K', 'CRS', 'NCS1K', 'NCS5K', 'NCS5500', 'NCS6K', 'ASR900', 'N6K', 'IOS-XRv', 'NCS4K'}
     phases = {'Pre-Upgrade', 'Post-Upgrade'}
 
     def run(self):
