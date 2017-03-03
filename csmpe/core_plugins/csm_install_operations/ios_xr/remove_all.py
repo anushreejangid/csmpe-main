@@ -1,8 +1,9 @@
 # =============================================================================
-# asr9k
 #
-# Copyright (c)  2016, Cisco Systems
+# Copyright (c) 2016, Cisco Systems
 # All rights reserved.
+#
+# # Author: Klaudiusz Staniek
 #
 # Redistribution and use in source and binary forms, with or without
 # modification, are permitted provided that the following conditions are met:
@@ -24,41 +25,30 @@
 # ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF
 # THE POSSIBILITY OF SUCH DAMAGE.
 # =============================================================================
+
 from csmpe.plugins import CSMPlugin
-from plugin_lib import parse_show_platform
+from install import install_remove_all
+from csmpe.core_plugins.csm_get_inventory.ios_xr.plugin import get_package, get_inventory
 
 
 class Plugin(CSMPlugin):
-    """This plugin checks the states of all nodes"""
-    name = "Node Status Check Plugin"
-    platforms = {'ASR9K', 'NCS1K', 'NCS5K', 'NCS5500', 'NCS6K', 'IOS-XRv', 'NCS4K'}
-    phases = {'Pre-Upgrade', 'Post-Upgrade'}
-    os = {'eXR'}
+    """This plugin removes all inactive packages from the device."""
+    name = "Install Remove All Plugin"
+    platforms = {'ASR9K', 'CRS'}
+    phases = {'Remove All'}
+    os = {'XR'}
 
     def run(self):
-        output = self.ctx.send("show platform")
 
-        inventory = parse_show_platform(output)
-        valid_state = [
-            'IOS XR RUN',
-            'PRESENT',
-            'READY',
-            'FAILED',
-            'OK',
-            'DISABLED',
-            'UNPOWERED',
-            'ADMIN DOWN',
-            'OPERATIONAL',
-            'NOT ALLOW ONLIN',  # This is not spelling error
-        ]
-        for key, value in inventory.items():
-            if 'CPU' in key:
-                if value['state'] not in valid_state:
-                    self.ctx.warning("{}={}: {}".format(key, value, "Not in valid state for upgrade"))
-                    break
-        else:
-            self.ctx.save_data("node_status", inventory)
-            self.ctx.info("All nodes in valid state for upgrade")
-            return True
+        cmd = 'admin install remove inactive async'
 
-        self.ctx.error("Not all nodes in correct state. Upgrade can not proceed")
+        self.ctx.info("Remove All Inactive Package(s) Pending")
+        self.ctx.post_status("Remove All Inactive Package(s) Pending")
+
+        install_remove_all(self.ctx, cmd, self.ctx._connection.hostname)
+
+        self.ctx.info("All Inactive Package(s) Removed Successfully")
+
+        # Refresh package and inventory information
+        get_package(self.ctx)
+        get_inventory(self.ctx)

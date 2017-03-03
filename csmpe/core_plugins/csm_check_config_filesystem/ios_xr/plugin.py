@@ -47,7 +47,7 @@ class Plugin(CSMPlugin):
         """
         ok = 0
         message = []
-        output = self.ctx.send("cfs check")
+        output = self.ctx.send("cfs check", timeout=300)
         lines = output.split("\n", 50)
         for line in lines:
             if line != "":

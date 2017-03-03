@@ -28,10 +28,17 @@
 import re
 import time
 import itertools
-from condoor import ConnectionError
+from condoor import ConnectionError, CommandError
 from csmpe.core_plugins.csm_node_status_check.ios_xr.plugin_lib import parse_show_platform
 
 install_error_pattern = re.compile("Error:    (.*)$", re.MULTILINE)
+
+plugin_ctx = None
+
+
+def send_yes(fsm_ctx):
+    plugin_ctx.send('Y')
+    return True
 
 
 def log_install_errors(ctx, output):
@@ -291,3 +298,146 @@ def install_activate_deactivate(ctx, cmd):
         log_install_errors(ctx, output)
         ctx.error("Operation {} failed".format(op_id))
         return
+
+
+def install_remove_all(ctx, cmd, hostname):
+    """
+    Success Condition:
+    RP/0/RSP0/CPU0:RO#admin install remove inactive async
+
+    Install operation 36 '(admin) install remove inactive' started by user 'root' via CLI at 01:14:44 PST Wed Feb 25 1987.
+    / 1% complete: The operation can no longer be aborted (ctrl-c for options)
+    Info:     This operation will remove the following package:
+    Info:         disk0:asr9k-px-5.3.3.CSCuz14049-1.0.0
+    - 1% complete: The operation can no longer be aborted (ctrl-c for options)
+    \ 1% complete: The operation can no longer be aborted (ctrl-c for options)
+    Info:     After this install remove the following install rollback point will no longer be reachable, as the required packages will not be present:
+    Info:         15
+    | 1% complete: The operation can no longer be aborted (ctrl-c for options)
+    Proceed with removing these packages? [confirm]
+    / 1% complete: The operation can no longer be aborted (ctrl-c for options)
+    The install operation will continue asynchronously.
+    RP/0/RSP0/CPU0:RO#Install operation 36 completed successfully at 01:14:51 PST Wed Feb 25 1987.
+
+    Failed Conditions:
+    RP/0/RSP0/CPU0:RO(admin)#install remove inactive
+    Install operation 588 '(admin) install remove inactive' started by user 'lab'
+    via CLI at 00:42:48 PST Tue Feb 24 1987.
+    Error:    Cannot proceed with the remove operation because there are no
+    Error:    packages that can be removed. Packages can only be removed if they
+    Error:    are not part of the active software and not part of the committed
+    Error:    software.
+    Error:    Suggested steps to resolve this:
+    Error:     - check the set of active packages using '(admin) show install
+    Error:       active'.
+    Error:     - check the committed software using '(admin) show install
+    Error:       committed'.
+    Error:     - check the set of inactive packages using '(admin) show install
+    Error:       inactive'.
+    Install operation 588 failed at 00:42:48 PST Tue Feb 24 1987.
+
+    RP/0/RSP0/CPU0:RO(admin)#install remove inactive async
+    Error:    Cannot proceed with the operation as another install command is
+    Error:    currently in operation.
+    Error:    Suggested steps to resolve this:
+    Error:     - use 'show install request' to see the state of the current install
+    Error:       operation.
+    Error:     - re-issue the command when the current operation has completed.
+    """
+
+    global plugin_ctx
+    plugin_ctx = ctx
+
+    # no op_id is returned from XR for install remove inactive
+    # need to figure out the last op_id first
+
+    cmd_show_install_log_reverse = \
+        'admin show install log reverse | utility egrep "Install operation [0-9]+ started"'
+    output = ctx.send(cmd_show_install_log_reverse, timeout=300)
+
+    if 'No log information' in output:
+        op_id = 0
+    else:
+        result = re.search('Install operation (\d+) started', output)
+        if result:
+            op_id = int(result.group(1))
+        else:
+            log_install_errors(ctx, output)
+            ctx.error("Operation ID not found by admin show install log reverse")
+            return
+
+    # Expected Operation ID
+    op_id += 1
+
+    operr = "Install operation {} failed at".format(op_id)
+    Error1 = re.compile("Error:     - re-issue the command when the current operation has completed.")
+    Error2 = re.compile(operr)
+    Proceed_removing = re.compile("\[confirm\]")
+    Host_prompt = re.compile(hostname)
+
+    events = [Host_prompt, Error1, Error2, Proceed_removing]
+    transitions = [
+        (Error1, [0], -1, CommandError("Another install command is currently in operation", hostname), 1800),
+        (Error2, [0], -1, CommandError("No packages can be removed", hostname), 1800),
+        (Proceed_removing, [0], 2, send_yes, 1800),
+        (Host_prompt, [2], -1, None, 1800),
+    ]
+
+    if not ctx.run_fsm("Remove Inactive All", cmd, events, transitions, timeout=1800):
+        ctx.error("Failed: {}".format(cmd))
+
+    message = "Waiting the operation to continue asynchronously"
+    ctx.info(message)
+    ctx.post_status(message)
+
+    last_status = None
+    no_install = r"There are no install requests in operation"
+    op_progress = r"The operation is (\d+)% complete"
+    cmd_show_install_request = "admin show install request"
+    op_success = "Install operation {} completed successfully".format(op_id)
+    propeller = itertools.cycle(["|", "/", "-", "\\", "|", "/", "-", "\\"])
+
+    finish = False
+    time_tried = 0
+    op_id = str(op_id)
+    while not finish:
+        try:
+            try:
+                # this is to catch the successful operation as soon as possible
+                ctx.send("", wait_for_string=op_success, timeout=20)
+                finish = True
+            except ctx.CommandTimeoutError:
+                pass
+
+            message = ""
+            # on CRS, it is observed that during Add, any command typed hangs for a while
+            output = ctx.send(cmd_show_install_request, timeout=300)
+            if op_id in output:
+                result = re.search(op_progress, output)
+                if result:
+                    status = result.group(0)
+                    message = "{} {}".format(propeller.next(), status)
+
+                if message != last_status:
+                    ctx.post_status(message)
+                    last_status = message
+        except (ConnectionError, ctx.CommandTimeoutError) as e:
+            if time_tried > 120:
+                raise e
+
+            time_tried += 1
+            time.sleep(30)
+
+        if no_install in output:
+            break
+
+    cmd_show_install_log = "admin show install log {} detail".format(op_id)
+    output = ctx.send(cmd_show_install_log, timeout=300)
+    ctx.info(output)
+
+    if op_success in output:
+        message = "Install Remove All completed successfully"
+        ctx.info(message)
+        ctx.post_status(message)
+    else:
+        ctx.error("Install Remove All has failed")

@@ -102,12 +102,14 @@ setup(
             '{} = csmpe.core_plugins.csm_install_operations.ios_xr.pre_migrate:Plugin'.format(uuid4()),
             '{} = csmpe.core_plugins.csm_install_operations.ios_xr.migrate:Plugin'.format(uuid4()),
             '{} = csmpe.core_plugins.csm_install_operations.ios_xr.post_migrate:Plugin'.format(uuid4()),
+            '{} = csmpe.core_plugins.csm_install_operations.ios_xr.remove_all:Plugin'.format(uuid4()),
 
             '{} = csmpe.core_plugins.csm_install_operations.exr.add:Plugin'.format(uuid4()),
             '{} = csmpe.core_plugins.csm_install_operations.exr.activate:Plugin'.format(uuid4()),
             '{} = csmpe.core_plugins.csm_install_operations.exr.commit:Plugin'.format(uuid4()),
             '{} = csmpe.core_plugins.csm_install_operations.exr.deactivate:Plugin'.format(uuid4()),
             '{} = csmpe.core_plugins.csm_install_operations.exr.remove:Plugin'.format(uuid4()),
+            '{} = csmpe.core_plugins.csm_install_operations.exr.remove_all:Plugin'.format(uuid4()),
 
             '{} = csmpe.core_plugins.csm_install_operations.ios_xe.add:Plugin'.format(uuid4()),
             '{} = csmpe.core_plugins.csm_install_operations.ios_xe.pre_activate:Plugin'.format(uuid4()),
