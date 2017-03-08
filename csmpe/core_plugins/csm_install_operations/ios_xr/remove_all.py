@@ -47,7 +47,7 @@ class Plugin(CSMPlugin):
 
         install_remove_all(self.ctx, cmd, self.ctx._connection.hostname)
 
-        self.ctx.info("All Inactive Package(s) Removed Successfully")
+        self.ctx.info("Remove All Inactive Package(s) Successfully")
 
         # Refresh package and inventory information
         get_package(self.ctx)

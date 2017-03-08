@@ -33,7 +33,7 @@ from csmpe.plugins import CSMPlugin
 class Plugin(CSMPlugin):
     """This plugin checks the configuration filesystem"""
     name = "Config Filesystem Check Plugin"
-    platforms = {'ASR9K', 'CRS', 'NCS1K', 'NCS5K', 'NCS5500', 'NCS6K'}
+    platforms = {'ASR9K', 'CRS', 'NCS1K', 'NCS4K', 'NCS5K', 'NCS5500', 'NCS6K', 'IOS-XRv'}
     phases = {'Pre-Upgrade', "Pre-Activate", "Pre-Deactivate"}
 
     def run(self):

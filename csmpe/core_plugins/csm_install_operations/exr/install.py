@@ -576,8 +576,8 @@ def observe_install_remove_all(ctx, cmd, prompt):
     ctx.info(output)
 
     if oper_success in output:
-        message = "Install Remove All completed successfully"
+        message = "Remove All Inactive Package(s) Successfully"
         ctx.info(message)
         ctx.post_status(message)
     else:
-        ctx.error("Install Remove All has failed")
+        ctx.error("Remove All Inactive Package(s) failed")
