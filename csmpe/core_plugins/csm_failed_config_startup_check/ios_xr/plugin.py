@@ -34,7 +34,7 @@ from csmpe.plugins import CSMPlugin
 class Plugin(CSMPlugin):
     """This plugin checks if there was a failed piece of config detected during startup"""
     name = "Check Failed Startup Config Plugin"
-    platforms = {'ASR9K', 'CRS', 'NCS1K', 'NCS5K', 'NCS5500', 'NCS6K'}
+    platforms = {'ASR9K', 'CRS', 'NCS1K', 'NCS4K', 'NCS5K', 'NCS5500', 'NCS6K', 'IOS-XRv'}
     phases = {'Post-Activate', 'Post-Upgrade'}
 
     def run(self):

@@ -31,7 +31,7 @@ from csmpe.plugins import CSMPlugin
 class Plugin(CSMPlugin):
     """This plugin checks system logs against any errors, traceback of crash information."""
     name = "Core Error Check Plugin"
-    platforms = {'ASR9K', 'CRS', 'NCS1K', 'NCS5K', 'NCS5500', 'NCS6K'}
+    platforms = {'ASR9K', 'CRS', 'NCS1K', 'NCS4K', 'NCS5K', 'NCS5500', 'NCS6K', 'IOS-XRv'}
     phases = {'Post-Upgrade'}
 
     # matching any errors, core and traceback

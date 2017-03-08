@@ -34,7 +34,7 @@ from csmpe.core_plugins.csm_get_inventory.exr.plugin import get_package, get_inv
 class Plugin(CSMPlugin):
     """This plugin removes inactive packages from the device."""
     name = "Install Remove Plugin"
-    platforms = {'ASR9K', 'NCS1K', 'NCS5K', 'NCS5500', 'NCS6K', 'IOS-XRv', 'NCS4K'}
+    platforms = {'ASR9K', 'NCS1K', 'NCS4K', 'NCS5K', 'NCS5500', 'NCS6K', 'IOS-XRv'}
     phases = {'Remove'}
     os = {'eXR'}
 
