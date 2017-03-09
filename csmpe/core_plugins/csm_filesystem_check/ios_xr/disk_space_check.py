@@ -53,7 +53,7 @@ class Plugin(CSMPlugin):
                 asr9K-doc-supp-4.3.1
         """
         cmd = "admin show install pie-info " + package_url
-        output = self.ctx.send(cmd)
+        output = self.ctx.send(cmd, timeout=3600)
         if output:
             for line in output.split('\n'):
                 if "Compressed" in line:
