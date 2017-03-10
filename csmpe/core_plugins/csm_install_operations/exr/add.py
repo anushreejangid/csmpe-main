@@ -26,7 +26,7 @@
 
 from csmpe.plugins import CSMPlugin
 from install import observe_install_add_remove
-from install import check_ncs6k_release
+from install import check_ncs6k_release, check_ncs4k_release
 from csmpe.core_plugins.csm_get_inventory.exr.plugin import get_package, get_inventory
 
 
@@ -103,6 +103,7 @@ class Plugin(CSMPlugin):
 
     def run(self):
         check_ncs6k_release(self.ctx)
+        check_ncs4k_release(self.ctx)
 
         server_repository_url = self.ctx.server_repository_url
         if server_repository_url is None:
@@ -116,7 +117,7 @@ class Plugin(CSMPlugin):
 
         has_tar = False
 
-        if self.ctx.family == 'NCS6K':
+        if self.ctx.family == 'NCS6K' or self.ctx.family == 'NCS4K':
             s_packages = " ".join([package for package in packages
                                    if ('iso' in package or 'pkg' in package or 'smu' in package or 'tar' in package)])
         else:

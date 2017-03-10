@@ -25,6 +25,18 @@
 # =============================================================================
 
 """
+NCS4K
+
+Production Packages
+
+External Names                                Internal Names
+ncs4k-full-x.iso-6.0.2
+ncs4k-mini-x.iso-6.0.2
+ncs4k-k9sec.pkg-6.0.2
+ncs4k-mpls.pkg-6.0.2
+ncs4k-mcast.pkg-6.0.2
+ncs4k-mgbl.pkg-6.0.2
+
 NCS6K
 
 Production Packages
@@ -107,12 +119,12 @@ ncs5500-parser-1.0.0.0-r601.x86_64.rpm-6.0.1                  ncs5500-parser-1.0
 """
 import re
 
-platforms = ['asr9k', 'ncs1k', 'ncs5k', 'ncs5500', 'ncs6k', 'xrv9k']
+platforms = ['asr9k', 'ncs1k', 'ncs4k', 'ncs5k', 'ncs5500', 'ncs6k', 'xrv9k']
 
 
 version_dict = {"asr9k ncs1k ncs5k ncs5500 xrv9k":  # 61117I or 611 or 6.1.1.17I or 6.1.1
                 re.compile("(?P<VERSION>(\d+\d+\d+(\d+\w+)?)|(\d+\.\d+\.\d+(\.\d+\w+)?)(?!\.\d)(?!-))"),
-                "ncs6k":                      # 5.2.4 or 5.2.4.47I
+                "ncs4k ncs6k":                      # 5.2.4 or 5.2.4.47I
                 re.compile("(?P<VERSION>\d+\.\d+\.\d+(\.\d+\w+)?)"),
                 }
 
@@ -120,7 +132,7 @@ smu_re = re.compile("(?P<SMU>CSC[a-z]{2}\d{5})")
 
 subversion_dict = {"asr9k ncs1k ncs5k ncs5500 xrv9k":
                    re.compile("-(?P<SUBVERSION>\d+\.\d+\.\d+\.\d+)-"),  # 2.0.0.0
-                   "ncs6k":
+                   "ncs4k ncs6k":
                    re.compile("CSC.*(?P<SUBVERSION>\d+\.\d+\.\d+?)"),   # 0.0.4
                    }
 
@@ -152,7 +164,8 @@ class SoftwarePackage(object):
             #     Extract the package type string before X.X.X.X
             # For NCS6K
             #     Extract the package type string before X.X.X
-            pattern = '-\d+\.\d+\.\d+' if self.platform == 'ncs6k' else '-\d\.\d\.\d.\d'
+            pattern = '-\d+\.\d+\.\d+' if self.platform == 'ncs6k' or \
+                self.platform == 'ncs4k' else '-\d\.\d\.\d.\d'
 
             if self.platform and self.platform in self.package_name:
                 match = re.search(pattern, self.package_name)
@@ -217,6 +230,9 @@ class SoftwarePackage(object):
         return None
 
     def is_valid(self):
+        print("self.platform = {}".format(self.platform))
+        print("self.version = {}".format(self.version))
+        print("self.package_type = {}".format(self.package_type))
         return self.platform and self.version and (self.package_type or self.smu)
 
     def __eq__(self, other):

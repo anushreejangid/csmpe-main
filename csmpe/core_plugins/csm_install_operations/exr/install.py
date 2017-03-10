@@ -57,6 +57,20 @@ def check_ncs6k_release(ctx):
                         ctx.error('Abort: Software package earlier than release 5.2.5 for NCS6K is not supported.')
 
 
+def check_ncs4k_release(ctx):
+    """
+    Only release 6.0.2 and above are supported by the plugin.
+    """
+    if ctx.family == 'NCS4K':
+        packages = ctx.software_packages
+        if packages is not None:
+            for package_name in packages:
+                matches = re.findall("\d+\.\d+\.\d+", package_name)
+                if matches:
+                    if matches[0] < '6.0.2':
+                        ctx.error('Abort: Software package earlier than release 6.0.2 for NCS4K is not supported.')
+
+
 def watch_operation(ctx, op_id=0):
     """
     Watch for the non-reload situation.  Upon issuing add/activate/commit/remove/deactivate, the install operation
@@ -363,6 +377,17 @@ def no_impact_warning(fsm_ctx):
     return True
 
 
+def handle_not_start(fsm_ctx):
+    """
+    :param ctx: FSM Context
+    :return: False
+    """
+    global plugin_ctx
+
+    plugin_ctx.error("Could not start this install operation because an install operation is still in progress")
+    return False
+
+
 def install_activate_deactivate(ctx, cmd):
     """
     Abort Situation:
@@ -446,9 +471,10 @@ def install_activate_deactivate(ctx, cmd):
     NO_IMPACT = re.compile("NO IMPACT OPERATION")
     ERROR = re.compile(re.escape("ERROR! there was an SU/ISSU done. please perform install commit before "
                                  "proceeding with any other prepare/activate/deactivate operation"))
+    NOT_START = re.compile("Could not start this install operation")
 
-    #                  0                    1           2         3          4         5
-    events = [CONTINUE_IN_BACKGROUND, REBOOT_PROMPT, ABORTED, NO_IMPACT, RUN_PROMPT, ERROR]
+    #                  0                    1           2         3          4         5        6
+    events = [CONTINUE_IN_BACKGROUND, REBOOT_PROMPT, ABORTED, NO_IMPACT, RUN_PROMPT, ERROR, NOT_START]
     transitions = [
         (CONTINUE_IN_BACKGROUND, [0], -1, handle_non_reload_activate_deactivate, 100),
         (REBOOT_PROMPT, [0], -1, handle_reload_activate_deactivate, 100),
@@ -456,6 +482,7 @@ def install_activate_deactivate(ctx, cmd):
         (RUN_PROMPT, [0], -1, handle_non_reload_activate_deactivate, 100),
         (ABORTED, [0], -1, handle_aborted, 100),
         (ERROR, [0], -1, partial(a_error, ctx), 0),
+        (NOT_START, [0], -1, handle_not_start, 100),
     ]
 
     if not ctx.run_fsm("ACTIVATE-OR-DEACTIVATE", cmd, events, transitions, timeout=100):
