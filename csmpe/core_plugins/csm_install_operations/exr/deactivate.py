@@ -28,7 +28,7 @@ from package_lib import SoftwarePackage
 from csmpe.plugins import CSMPlugin
 from install import install_activate_deactivate
 from install import send_admin_cmd
-from install import check_ncs6k_release
+from install import check_ncs6k_release, check_ncs4k_release
 from csmpe.core_plugins.csm_get_inventory.exr.plugin import get_package, get_inventory
 
 
@@ -82,6 +82,7 @@ class Plugin(CSMPlugin):
         May 27 16:39:36 Install operation will continue in the background
         """
         check_ncs6k_release(self.ctx)
+        check_ncs4k_release(self.ctx)
 
         operation_id = None
         if hasattr(self.ctx, 'operation_id'):
@@ -98,6 +99,7 @@ class Plugin(CSMPlugin):
         if operation_id is not None and operation_id != -1:
             cmd = 'install deactivate id {}'.format(operation_id)
         else:
+            self.ctx.info("packages to be deactivated = {}".format(tobe_deactivated))
             cmd = 'install deactivate {}'.format(tobe_deactivated)
 
         self.ctx.info("Deactivate package(s) pending")
