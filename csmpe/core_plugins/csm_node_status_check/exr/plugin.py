@@ -47,6 +47,7 @@ class Plugin(CSMPlugin):
             'OK',
             'DISABLED',
             'UNPOWERED',
+            'SW_INACTIVE',
             'POWERED_OFF',
             'ADMIN DOWN',
             'OPERATIONAL',

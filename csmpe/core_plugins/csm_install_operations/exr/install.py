@@ -172,6 +172,7 @@ def validate_node_state(inventory):
         'DISABLED',
         'UNPOWERED',
         'POWERED_OFF',
+        'SW_INACTIVE',
         'ADMIN DOWN',
         'OPERATIONAL',
         'NOT ALLOW ONLIN',  # This is not spelling error
