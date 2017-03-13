@@ -56,7 +56,7 @@ class Plugin(CSMPlugin):
         output = self.ctx.send(cmd, timeout=3600)
         if output:
             for line in output.split('\n'):
-                if "Compressed" in line:
+                if "Uncompressed" in line:
                     size = long(line.split(":")[1].strip())
                     return size
                 if line and line[:6] == "Error:":
