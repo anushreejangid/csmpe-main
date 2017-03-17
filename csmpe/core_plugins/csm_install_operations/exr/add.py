@@ -67,7 +67,7 @@ class Plugin(CSMPlugin):
 
             cmd = "install add source {} {}".format(url_without_password, s_packages)
             output1 = self.ctx.send(cmd, wait_for_string="[Pp]assword:", timeout=60)
-            output2 = self.ctx.send(end[0], timeout=100)
+            output2 = self.ctx.send(end[0], timeout=100, password=True)
             output = output1 + output2
 
         elif server_repository_url.startswith("scp"):
