@@ -228,7 +228,9 @@ def wait_for_reload(ctx):
             break
 
         time.sleep(poll_time)
-        output = ctx.send(cmd)
+
+        # show platform can take more than 1 minute after router reload. Issue No. 47
+        output = ctx.send(cmd, timeout=600)
         if xr_run in output:
             inventory = parse_show_platform(output)
             if validate_node_state(inventory):

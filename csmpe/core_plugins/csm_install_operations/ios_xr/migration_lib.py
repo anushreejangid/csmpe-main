@@ -66,7 +66,8 @@ def get_all_supported_nodes(ctx, supported_cards):
     """Get the list of string node names(all available RSP/RP/LC) that are supported for migration."""
     supported_nodes = []
     ctx.send("admin")
-    output = ctx.send("show platform")
+    # show platform can take more than 1 minute after router reload. Issue No. 47
+    output = ctx.send("show platform", timeout=600)
     inventory = parse_exr_admin_show_platform(output)
 
     rp_pattern = re.compile(ADMIN_RP)

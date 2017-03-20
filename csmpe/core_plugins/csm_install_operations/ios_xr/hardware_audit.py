@@ -201,7 +201,8 @@ class Plugin(CSMPlugin):
         if not supported_hw.get(software_version):
             self.ctx.error("No hardware support information available for release {}.".format(software_version))
 
-        output = self.ctx.send("admin show platform")
+        # show platform can take more than 1 minute after router reload. Issue No. 47
+        output = self.ctx.send("admin show platform", timeout=600)
         inventory = parse_admin_show_platform(output)
 
         log_and_post_status(self.ctx, "Check if cards on device are supported for migration.")
