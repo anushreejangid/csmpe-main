@@ -230,9 +230,6 @@ class SoftwarePackage(object):
         return None
 
     def is_valid(self):
-        print("self.platform = {}".format(self.platform))
-        print("self.version = {}".format(self.version))
-        print("self.package_type = {}".format(self.package_type))
         return self.platform and self.version and (self.package_type or self.smu)
 
     def __eq__(self, other):
