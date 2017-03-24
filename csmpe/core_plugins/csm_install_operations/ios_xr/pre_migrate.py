@@ -33,20 +33,14 @@ import subprocess
 import pexpect
 
 from csmpe.plugins import CSMPlugin
-from csmpe.context import PluginError
 from csmpe.core_plugins.csm_install_operations.utils import ServerType, is_empty, concatenate_dirs
 from simple_server_helper import TFTPServer, FTPServer, SFTPServer
 from hardware_audit import Plugin as HardwareAuditPlugin
-from add import Plugin as InstallAddPlugin
-from activate import Plugin as InstallActivatePlugin
-from commit import Plugin as InstallCommitPlugin
 from migration_lib import log_and_post_status
 from csmpe.core_plugins.csm_get_inventory.ios_xr.plugin import get_package, get_inventory
 
-MINIMUM_RELEASE_VERSION_FOR_MIGRATION = "5.3.3"
-RELEASE_VERSION_DOES_NOT_NEED_FPD_SMU = "6.1.1"
+MINIMUM_RELEASE_VERSION_FOR_MIGRATION = "6.1.3"
 
-# NOX_32_BINARY = "nox_linux_32bit_6.0.0v3.bin"
 NOX_FOR_MAC = "nox-mac64.bin"
 NOX_64_BINARY = "nox-linux-64.bin"
 
@@ -57,19 +51,7 @@ TIMEOUT_FOR_FPD_UPGRADE = 9600
 IMAGE_LOCATION = "harddisk:/"
 CONFIG_LOCATION = "harddiskb:/"
 
-ROUTEPROCESSOR_RE = '\d+/RS??P\d+/CPU\d+'
-LINECARD_RE = '\d+/\d+/CPU\d+'
-# SUPPORTED_CARDS = ['4X100', '8X100', '12X100']
-# FPD_NODE is actually regex for RP/RSP/FC/LC
-FPD_NODE = '(\d+/(?:RS?P|FC)?\d+/(?:CPU\d+|SP))'
-FAN = '\d+/FT\d+/SP'
-PEM = '\d+/P[SM]\d+/M?\d+/SP'
-FC = '\d+/FC\d+/SP'
-
-FPDS_CHECK_FOR_UPGRADE = set(['cbc', 'rommon', 'fpga2', 'fsbl', 'lnxfw', 'fpga8', 'fclnxfw', 'fcfsbl'])
-
 XR_CONFIG_IN_CSM = "xr.cfg"
-# BREAKOUT_CONFIG_IN_CSM = "breakout.cfg"
 ADMIN_CONFIG_IN_CSM = "admin.cfg"
 
 CONVERTED_XR_CONFIG_IN_CSM = "xr.iox"
@@ -102,6 +84,8 @@ class Plugin(CSMPlugin):
     platforms = {'ASR9K'}
     phases = {'Pre-Migrate'}
     os = {'XR'}
+
+    node_pattern = re.compile("^\d+(/\w+)+$")
 
     def _save_show_platform(self):
         """Save the output of 'show platform' to session log"""
@@ -313,32 +297,48 @@ class Plugin(CSMPlugin):
 
         remote_directory = concatenate_dirs(server.server_directory, self.ctx._csm.install_job.server_directory)
         if not is_empty(remote_directory):
-            source_path = source_path + ":{}".format(remote_directory)
+            source_path += ":{}".format(remote_directory)
+
+        def pause_logfile_stream(ctx):
+            """
+            This was made necessary because during sftp download, when file is large,
+            the number of transferred bytes keeps changing and session log takes so much
+            time in reading and writing the changing number that it is still doing that
+            long after the operation is complete.
+            """
+            if ctx.ctrl._session.logfile_read:
+                ctx.ctrl._session.logfile_read = None
+            return True
 
         def send_password(ctx):
             ctx.ctrl.sendline(server.password)
-            if ctx.ctrl._session.logfile_read:
-                ctx.ctrl._session.logfile_read = None
-            return True
+            return pause_logfile_stream(ctx)
 
         def send_yes(ctx):
             ctx.ctrl.sendline("yes")
-            if ctx.ctrl._session.logfile_read:
-                ctx.ctrl._session.logfile_read = None
-            return True
+            return pause_logfile_stream(ctx)
 
         def reinstall_logfile(ctx):
-            if self.ctx._connection._session_fd and (not ctx.ctrl._session.logfile_read):
-                ctx.ctrl._session.logfile_read = self.ctx._connection._session_fd
+            if ctx.ctrl._logfile_fd and (not ctx.ctrl._session.logfile_read):
+                ctx.ctrl._session.logfile_read = ctx.ctrl._logfile_fd
             else:
                 ctx.message = "Error reinstalling session.log."
                 return False
             return True
 
-        def error(ctx):
-            if self.ctx._connection._session_fd and (not ctx.ctrl._session.logfile_read):
-                ctx.ctrl._session.logfile_read = self.ctx._connection._session_fd
-            ctx.message = "Error copying file."
+        def timeout_error(ctx):
+            reinstall_logfile(ctx)
+            ctx.message = "Timed out while copying file from sftp."
+            return False
+
+        def no_such_file_error(ctx):
+            reinstall_logfile(ctx)
+            ctx.message = "Copying the file from sftp failed because it is not found in the specified path."
+            return False
+
+        def download_abort_error(ctx):
+            reinstall_logfile(ctx)
+            ctx.message = "Copying the file from sftp failed. Download was aborted."
             return False
 
         for x in range(0, len(source_filenames)):
@@ -349,7 +349,7 @@ class Plugin(CSMPlugin):
                                                            dest_files[x], server.vrf)
 
             PASSWORD = re.compile("Password:")
-            CONFIRM_OVERWRITE = re.compile("Overwrite.*continue\? \[yes/no\]:")
+            CONFIRM_OVERWRITE = re.compile("Overwrite.*\[yes/no\]\:")
             COPIED = re.compile("bytes copied in", re.MULTILINE)
             NO_SUCH_FILE = re.compile("src.*does not exist")
             DOWNLOAD_ABORTED = re.compile("Download aborted.")
@@ -363,9 +363,9 @@ class Plugin(CSMPlugin):
                 (CONFIRM_OVERWRITE, [1], 2, send_yes, timeout),
                 (COPIED, [1, 2], -1, reinstall_logfile, 0),
                 (PROMPT, [1, 2], -1, reinstall_logfile, 0),
-                (TIMEOUT, [0, 1, 2], -1, error, 0),
-                (NO_SUCH_FILE, [0, 1, 2], -1, error, 0),
-                (DOWNLOAD_ABORTED, [0, 1, 2], -1, error, 0),
+                (TIMEOUT, [0, 1, 2], -1, timeout_error, 0),
+                (NO_SUCH_FILE, [0, 1, 2], -1, no_such_file_error, 0),
+                (DOWNLOAD_ABORTED, [0, 1, 2], -1, download_abort_error, 0),
             ]
 
             log_and_post_status(self.ctx, "Copying {}/{} to {} on device".format(source_path,
@@ -377,8 +377,6 @@ class Plugin(CSMPlugin):
                                                                             source_filenames[x],
                                                                             dest_files[x]))
 
-            if self.ctx._connection._session_fd and (not self.ctx._connection._driver.ctrl._session.logfile_read):
-                self.ctx._connection._driver.ctrl._session.logfile_read = self.ctx._connection._session_fd
             output = self.ctx.send("dir {}".format(dest_files[x]))
             if "No such file" in output:
                 self.ctx.error("Failed to copy {}/{} to {} on device".format(source_path,
@@ -492,45 +490,70 @@ class Plugin(CSMPlugin):
         #    self.ctx.error("/harddiskb:/ is smaller than 1 GB after running /pkg/bin/resize_eusb. " +
         #                   "Please make sure that the device has either RP2 or RSP4.")
 
-    def _check_fpd(self, nodes_to_check):
+    def _check_fpd(self, fpd_relevant_nodes):
         """
         Check the versions of migration related FPD's on device. Return a dictionary
-        that tells which FPD's on which node needs upgrade.
+        that tells which FPD's on which nodes require successful FPD upgrade later on.
 
-        :param nodes_to_check: a list of strings representing all nodes(RSP/RP/LC/FC) on device
-                               that we actually will need to make sure that the FPD upgrade
-                               later on completes successfully.
-        :return: a dictionary with string FPD type as key, and a list of the string names of
-                 nodes(RSP/RP/LC/FC) as value.
+        :param fpd_relevant_nodes: a dictionary. Keys are strings representing all node locations
+                                   on device parsed from output of "admin show platform".
+                                   Values are integers. Value can either be 0 or 1.
+                                   value 1 means that we actually will need to make sure that the
+                                   FPD upgrade later on for this node location completes successfully,
+                                   value 0 means that we don't need to check if the
+                                   FPD upgrade later on for this node location is successful or not.
+        :return: a dictionary with string FPD type as key, and a set of the string names of
+                 node locations as value.
         """
         fpdtable = self.ctx.send("show hw-module fpd location all")
 
         subtype_to_locations_need_upgrade = {}
 
-        for fpdtype in FPDS_CHECK_FOR_UPGRADE:
-            match_iter = re.finditer(FPD_NODE + "[-.A-Z0-9a-z\s]*?\s+" + fpdtype + "\s+[-.A-Z0-9a-z\s]*?(No|Yes)", fpdtable)
+        last_location = None
+        for line in fpdtable.split('\n'):
 
-            for match in match_iter:
-                if match.group(1) in nodes_to_check:
-                    if match.group(2) == "Yes":
-                        if fpdtype not in subtype_to_locations_need_upgrade:
-                            subtype_to_locations_need_upgrade[fpdtype] = []
-                        subtype_to_locations_need_upgrade[fpdtype].append(match.group(1))
+            first_word = line.split(' ', 1)[0]
+
+            if self.node_pattern.match(first_word):
+                # since fpd_relevant_nodes is loaded from db, the keys are
+                # unicode instead of byte strings
+                indicator = fpd_relevant_nodes.get(unicode(first_word, encoding="latin1"))
+                # indicator is 1:
+                #       Detect a new node(RSP/RP/LC/FC) of which fpds we'll need to check
+                #       if upgrade goes successful
+                # indicator is None:
+                #       Detect node that is not found in output of "admin show platform"
+                #       we need to check if FPD upgrade goes successful in this case
+                if indicator == 1 or indicator is None:
+                    last_location = first_word
+                # indicator is 0:
+                #       Detect node to be PEM/FAN or some other unsupported hardware in eXR.
+                #       we don't care if the FPD upgrade for these is successful or not
+                #       so we update last_location to None
+                else:
+                    last_location = None
+
+            # Found some fpd that needs upgrade
+            if last_location and len(line) >= 79 and line[76:79] == "Yes":
+                fpdtype_end_idx = 51
+                while line[fpdtype_end_idx] != ' ':
+                    fpdtype_end_idx += 1
+
+                fpdtype = line[51:fpdtype_end_idx]
+
+                if fpdtype not in subtype_to_locations_need_upgrade:
+                    # it is possible to have duplicates, so using set here
+                    subtype_to_locations_need_upgrade[fpdtype] = set()
+                subtype_to_locations_need_upgrade[fpdtype].add(last_location)
 
         return subtype_to_locations_need_upgrade
 
-    def _check_if_fpd_packages_installed(self, version, packages):
+    def _check_if_fpd_package_installed(self):
         """
-        1. Check if the FPD package is already active on device.
-           Error out if not.
-        2. Check if the FPD SMU is selected when scheduling Pre-Migrate,
-            if the version is below RELEASE_VERSION_DOES_NOT_NEED_FPD_SMU
-        :param version: the current version of software. i.e., "5.3.3"
-        :param packages:  all user selected packages from scheduling the Pre-Migrate
-        :return: all .pie packages selected when scheduling Pre-Migrate
-                   if no error (if the FPD package is installed,
-                   and the FPD SMU is installed if version is below
-                   RELEASE_VERSION_DOES_NOT_NEED_FPD_SMU
+        Check if the FPD package is already active on device.
+        Error out if not.
+
+        :return: None if FPD package is active, error out if not.
         """
         active_packages = self.ctx.send("show install active summary")
 
@@ -538,96 +561,41 @@ class Plugin(CSMPlugin):
 
         if not match:
             self.ctx.error("No FPD package is active on device. Please install the FPD package on device first.")
-        pie_packages = []
 
-        if version < RELEASE_VERSION_DOES_NOT_NEED_FPD_SMU:
-            log_and_post_status(self.ctx, "Checking if a FPD SMU was selected.")
+        return
 
-            for package in packages:
-                if package.find(".pie") > -1:
-                    pie_packages.append(package)
-
-            if len(pie_packages) > 1:
-                self.ctx.error("More than one '.pie' package selected when scheduling Pre-Migrate. Current " +
-                               "version number is below {},".format(RELEASE_VERSION_DOES_NOT_NEED_FPD_SMU) +
-                               "so please only select one unified FPD SMU pie " +
-                               "from server repository when scheduling Pre-Migrate.")
-            elif len(pie_packages) == 0:
-                self.ctx.error("No '.pie' package selected when scheduling Pre-Migrate. Current " +
-                               "version number is below {},".format(RELEASE_VERSION_DOES_NOT_NEED_FPD_SMU) +
-                               "Please select one unified FPD SMU pie " +
-                               "from server repository when scheduling Pre-Migrate.")
-        return pie_packages
-
-    def _ensure_updated_fpd(self, fpd_relevant_nodes, version, pie_packages):
+    def _ensure_updated_fpd(self, fpd_relevant_nodes):
         """
         Upgrade FPD's if needed.
         Steps:
-        2. If current version is below RELEASE_VERSION_DOES_NOT_NEED_FPD_SMU,
-           check if the FPD SMU is already active on device.
-           (Possibly by a previous Pre-Migrate action)
-        3. Install add, activate and commit the FPD SMU if SMU is not installed.
-        4. Check version of the migration related FPD's. Get the dictionary
+        1. Check version of the migration related FPD's. Get the dictionary
            of FPD types mapped to locations for which we need to check for
            upgrade successs.
-        5. Force install the FPD types that need upgrade on all locations.
+        2. Force install the FPD types that need upgrade on all locations.
            Check FPD related sys log to make sure all necessary upgrades
            defined by the dictionary complete successfully.
 
-        :param packages: all user selected packages from scheduling the Pre-Migrate
-        :param fpd_relevant_nodes: the list of string nodes names for which we need
-                                    to check that fpd upgrade completed successfully.
-                                    we get this list from running
-                                    hardware audit plugin
-        :param version: the current version of software. i.e., "5.3.3"
-        :param pie_packages: a list containing only the name of the selected FPD SMU
+        :param fpd_relevant_nodes: a dictionary. Keys are strings representing all node locations
+                                   on device parsed from output of "admin show platform".
+                                   Values are integers. Value can either be 0 or 1.
+                                   value 1 means that we actually will need to make sure that the
+                                   FPD upgrade later on for this node location completes successfully,
+                                   value 0 means that we don't need to check if the
+                                   FPD upgrade later on for this node location is successful or not.
+
         :return: True if no error occurred.
         """
-
-        if version < RELEASE_VERSION_DOES_NOT_NEED_FPD_SMU:
-            log_and_post_status(self.ctx, "Checking if the FPD SMU has been installed.")
-
-            name_of_fpd_smu = pie_packages[0].split(".pie")[0]
-
-            install_summary = self.ctx.send("show install active summary")
-
-            match = re.search(name_of_fpd_smu, install_summary)
-
-            if match:
-                log_and_post_status(self.ctx, "The selected FPD SMU {} is ".format(pie_packages[0]) +
-                                    "found already active on device.")
-            else:
-                self._run_install_action_plugin(InstallAddPlugin, "add")
-                self._run_install_action_plugin(InstallActivatePlugin, "activate")
-                self._run_install_action_plugin(InstallCommitPlugin, "commit")
-
         # check for the FPD version, if FPD needs upgrade,
         log_and_post_status(self.ctx, "Checking FPD versions...")
         subtype_to_locations_need_upgrade = self._check_fpd(fpd_relevant_nodes)
 
         if subtype_to_locations_need_upgrade:
 
-            print "subtype_to_locations_need_upgrade = " + str(subtype_to_locations_need_upgrade)
-
             # Force upgrade all FPD's in RP and Line card that need upgrade, with the FPD pie or both the FPD
             # pie and FPD SMU depending on release version
             self._upgrade_all_fpds(subtype_to_locations_need_upgrade)
 
         return True
-
-    def _run_install_action_plugin(self, plugin_class, plugin_action):
-        """Instantiate other install actions(install add, activate and commit) on same given packages"""
-        log_and_post_status(self.ctx, "FPD upgrade - install {} the FPD SMU...".format(plugin_action))
-        try:
-            install_plugin = plugin_class(self.ctx)
-            install_plugin.run()
-        except PluginError as e:
-            self.ctx.error("Failed to install {} the FPD SMU - ({}): {}".format(plugin_action,
-                                                                                e.errno, e.strerror))
-        except AttributeError:
-            self.ctx.error("Failed to install {} the FPD SMU. Please check session.log for details of failure.".format(
-                plugin_action)
-            )
 
     def _upgrade_all_fpds(self, subtype_to_locations_need_upgrade):
         """Force upgrade certain FPD's on all locations. Check for success. """
@@ -868,13 +836,21 @@ class Plugin(CSMPlugin):
                                         for config_name in config_names_on_device],
                                        timeout=TIMEOUT_FOR_COPY_CONFIG)
 
-    def _get_exr_tar_package(self, packages):
-        """Find out which version of eXR we are migrating to from the name of tar file"""
+    def _get_packages(self, packages):
+        """Find out which package is eXR tar file, which is crypto_auto_key_gen.txt"""
+        if len(packages) > 2:
+            self.ctx.error("More than two packages are selected, however, only the ASR9K IOS XR 64 Bit tar file and the crypto key generation file should be selected.")
+        if len(packages) == 0:
+            self.ctx.error("No ASR9K IOS XR 64 Bit tar file selected for Pre-Migrate.")
         image_pattern = re.compile("asr9k.*\.tar.*")
+        exr_tar = None
+        crypto_file = None
         for package in packages:
             if image_pattern.match(package):
-                return package
-        self.ctx.error("No ASR9K IOS XR 64 Bit tar file found in packages.")
+                exr_tar = package
+            else:
+                crypto_file = package
+        return exr_tar, crypto_file
 
     def _find_nox_to_use(self):
         """
@@ -908,9 +884,9 @@ class Plugin(CSMPlugin):
         except AttributeError:
             self.ctx.error("No package list provided")
 
-        config_filename = None
-        if self.ctx.load_data('config_filename'):
-            config_filename = self.ctx.load_data('config_filename')[0]
+        config_filename_tuple = self.ctx.load_job_data('config_filename')
+        if config_filename_tuple:
+            config_filename = config_filename_tuple[0]
 
         server = None
         try:
@@ -921,14 +897,12 @@ class Plugin(CSMPlugin):
         if server is None:
             self.ctx.error("No server repository selected")
 
-        override_hw_req = None
-        if self.ctx.load_data('override_hw_req'):
-            override_hw_req = self.ctx.load_data('override_hw_req')[0]
-        if not override_hw_req:
-            self.ctx.error("No indication of whether to override hardware requirement or not.")
+        if not self.ctx.load_job_data('override_hw_req'):
+            self.ctx.error("Missing indication of whether to override hardware requirement or not.")
 
-        exr_image = self._get_exr_tar_package(packages)
-        version_match = re.findall("\d+\.\d+\.\d+", exr_image)
+        exr_image, crypto_file = self._get_packages(packages)
+
+        version_match = re.findall("(\d+\.\d+)\.\d+", exr_image)
         if version_match:
             exr_version = version_match[0]
         else:
@@ -944,18 +918,14 @@ class Plugin(CSMPlugin):
         if not os.path.exists(fileloc):
             os.makedirs(fileloc)
 
-        self.ctx.save_data('hardware_audit_software_version', exr_version)
-        # this is necessary because override_hw_req data field is used for frontend too,
-        # hardware_audit will need to reset this new data field hardware_audit_override_hw_req
-        # every time so as to not take an older value and also not affect the frontend.
-        self.ctx.save_data('hardware_audit_override_hw_req', override_hw_req)
+        self.ctx.save_job_data('hardware_audit_version', exr_version)
         hardware_audit_plugin = HardwareAuditPlugin(self.ctx)
         hardware_audit_plugin.run()
 
-        fpd_relevant_nodes = None
-        if self.ctx.load_data('fpd_relevant_nodes'):
-            fpd_relevant_nodes = self.ctx.load_data('fpd_relevant_nodes')[0]
-        if not fpd_relevant_nodes:
+        fpd_relevant_nodes_tuple = self.ctx.load_job_data('fpd_relevant_nodes')
+        if fpd_relevant_nodes_tuple:
+            fpd_relevant_nodes = fpd_relevant_nodes_tuple[0]
+        else:
             self.ctx.error("No data field fpd_relevant_nodes after completing hardware audit successfully.")
 
         log_and_post_status(self.ctx, "Checking current software version.")
@@ -968,18 +938,15 @@ class Plugin(CSMPlugin):
         version = match_version.group(1)
 
         if version < MINIMUM_RELEASE_VERSION_FOR_MIGRATION:
-            self.ctx.error("The minimal release version required for migration is 5.3.3. " +
-                           "Please upgrade to at lease 5.3.3 before scheduling migration.")
+            self.ctx.error("The minimal release version required for migration is {0}. Please upgrade to at lease {0} before scheduling migration.".format(MINIMUM_RELEASE_VERSION_FOR_MIGRATION))
 
         log_and_post_status(self.ctx, "Testing ping to selected server repository IP.")
         self._ping_repository_check(server_repo_url)
 
         log_and_post_status(self.ctx, "Checking if FPD package is active on device.")
-        pie_packages = self._check_if_fpd_packages_installed(version, packages)
+        self._check_if_fpd_package_installed()
 
         nox_to_use = self.ctx.migration_directory + self._find_nox_to_use()
-
-        # nox_to_use = self.ctx.migration_directory + NOX_FOR_MAC
 
         if not os.path.isfile(nox_to_use):
             self.ctx.error("The configuration conversion tool {} is missing. ".format(nox_to_use) +
@@ -997,7 +964,12 @@ class Plugin(CSMPlugin):
         self._copy_files_to_device(server, server_repo_url, [exr_image],
                                    [IMAGE_LOCATION + exr_image], timeout=TIMEOUT_FOR_COPY_IMAGE)
 
-        self._ensure_updated_fpd(fpd_relevant_nodes, version, pie_packages)
+        if crypto_file:
+            log_and_post_status(self.ctx, "Copying the crypto key generation file from server repository to device.")
+            self._copy_files_to_device(server, server_repo_url, [crypto_file],
+                                       [CONFIG_LOCATION + crypto_file], timeout=60)
+
+        self._ensure_updated_fpd(fpd_relevant_nodes)
 
         # Refresh package and inventory information
         get_package(self.ctx)

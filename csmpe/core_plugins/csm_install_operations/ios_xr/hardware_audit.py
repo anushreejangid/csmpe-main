@@ -33,13 +33,6 @@ from migration_lib import SUPPORTED_HW_JSON, log_and_post_status, parse_admin_sh
 from csmpe.core_plugins.csm_get_inventory.ios_xr.plugin import get_package, get_inventory
 
 
-ROUTEPROCESSOR_RE = '\d+/RS??P\d+/CPU\d+'
-LINECARD_RE = '\d+/\d+/CPU\d+'
-FAN = '\d+/FT\d+/SP'
-PEM = '\d+/P[SM]\d+/M?\d+/SP'
-FC = '\d+/FC\d+/SP'
-
-
 class Plugin(CSMPlugin):
     """
     A plugin for auditing hardware for migration from
@@ -50,6 +43,12 @@ class Plugin(CSMPlugin):
     name = "Migration Audit Plugin"
     platforms = {'ASR9K'}
     phases = {'Migration-Audit'}
+
+    rp_pattern = re.compile('\d+/RS??P\d+/CPU\d+')
+    fc_pattern = re.compile('\d+/FC\d+/SP')
+    fan_pattern = re.compile('\d+/FT\d+/SP')
+    pem_pattern = re.compile('\d+/P[SM]\d+/M?\d+/SP')
+    lc_pattern = re.compile('\d+/\d+/CPU\d+')
 
     def _check_if_hw_supported_and_in_valid_state(self, inventory, supported_hw, override):
         """
@@ -72,56 +71,59 @@ class Plugin(CSMPlugin):
         :param inventory: the result for parsing the output of 'admin show platform'
         :param supported_hw: stores info about which card types are supported in eXR for RSP/RP/FAN/PEM/FC/LC
         :param override: override the requirement to check FAN/PEM hardware types
-        :return: if requirements are met, returns a list of node names containing all RSP's, RP's and supported LC's
-                that are in IOS XR RUN state and all FC's that are in OK state. This list is used for upgrading fpd's
-                 and checking the success of fpd upgrade. Errors out otherwise.
+        :return: Errors out if a requirement is not met.
+                If all requirements are met, returns a dictionary used later in other plugin(s) for monitoring
+                the success of FPD upgrade. Keys are node names parsed from 'admin show platform'.
+                 Values are integers. Value can either be 0 or 1. value 1 means that this node is supported in
+                 eXR and is in valid state for migration. value 0 means that either this node is a PEM/FAN, or
+                 this node is not supported in eXR.
         """
-
-        rp_pattern = re.compile(ROUTEPROCESSOR_RE)
-        fc_pattern = re.compile(FC)
-        fan_pattern = re.compile(FAN)
-        pem_pattern = re.compile(PEM)
-        lc_pattern = re.compile(LINECARD_RE)
-
-        fpd_relevant_nodes = []
+        fpd_relevant_nodes = {}
 
         for i in xrange(0, len(inventory)):
             node, entry = inventory[i]
 
-            if rp_pattern.match(node):
+            if node in fpd_relevant_nodes:
+                continue
+
+            if self.rp_pattern.match(node):
                 rp_or_rsp = self._check_if_supported_and_in_valid_state(node, entry,
                                                                         supported_hw.get("RP"), "IOS XR RUN")
-                if rp_or_rsp == 1:
-                    fpd_relevant_nodes.append(node)
 
-            elif fc_pattern.match(node):
+                fpd_relevant_nodes[node] = rp_or_rsp
+
+            elif self.fc_pattern.match(node):
 
                 fc = self._check_if_supported_and_in_valid_state(node, entry,
                                                                  supported_hw.get("FC"), "OK")
-                if fc == 1:
-                    fpd_relevant_nodes.append(node)
+                fpd_relevant_nodes[node] = fc
 
-            elif lc_pattern.match(node):
+            elif self.lc_pattern.match(node):
 
                 lc = self._check_if_supported_and_in_valid_state(node, entry, supported_hw.get("LC"),
                                                                  "IOS XR RUN", mandatory=False)
                 for j in xrange(i + 1, len(inventory)):
                     next_node, next_entry = inventory[j]
                     if "MPA" in next_entry["type"]:
-                        self._check_if_supported_and_in_valid_state(next_node, next_entry,
-                                                                    supported_hw.get("MPA"), "OK")
+                        mpa = self._check_if_supported_and_in_valid_state(next_node, next_entry,
+                                                                          supported_hw.get("MPA"), "OK")
+                        fpd_relevant_nodes[next_node] = mpa
 
-                if lc == 1:
-                    fpd_relevant_nodes.append(node)
+                fpd_relevant_nodes[node] = lc
 
-            elif fan_pattern.match(node):
+            elif self.fan_pattern.match(node):
                 self._check_if_supported_and_in_valid_state(node, entry,
                                                             supported_hw.get("FAN"),
                                                             "READY", mandatory=not override)
-            elif pem_pattern.match(node):
+                fpd_relevant_nodes[node] = 0
+            elif self.pem_pattern.match(node):
                     self._check_if_supported_and_in_valid_state(node, entry,
                                                                 supported_hw.get("PEM"),
                                                                 "READY", mandatory=not override)
+                    fpd_relevant_nodes[node] = 0
+            else:
+                fpd_relevant_nodes[node] = 1
+
         return fpd_relevant_nodes
 
     def _check_if_supported_and_in_valid_state(self, node_name, value,
@@ -137,7 +139,7 @@ class Plugin(CSMPlugin):
                           type is supported, but if it is supported, its state must be in the operational state
         :return: 1 if it's confirmed that the node is supported and in the operational state for migration.
 
-                 -1 if it's not mandatory that this node has supported card type, and it's confirmed that it does
+                 0 if it's not mandatory that this node has supported card type, and it's confirmed that it does
                     not have supported card type, but it is in the operational state for migration.
 
                  errors out if this node is in either of the situations below:
@@ -162,38 +164,25 @@ class Plugin(CSMPlugin):
                            " state. Valid operational state for migration: {}".format(operational_state))
         if supported:
             return 1
-        return -1
+        return 0
 
     def run(self):
 
-        software_version = None
-        # First checks if the request came from Pre-Migrate
-        if self.ctx.load_data('hardware_audit_software_version'):
-            software_version = self.ctx.load_data('hardware_audit_software_version')[0]
-            # reset the values so that the hardware audit will not assume that the request
-            # comes from Pre-Migrate the next time hardware audit runs.
-            self.ctx.save_data('hardware_audit_software_version', '')
-        # Then checks if the request came from Migration-Audit
-        if not software_version and self.ctx.load_data('hardware_audit_version'):
-            software_version = self.ctx.load_data('hardware_audit_version')[0]
-
-        if not software_version:
-            self.ctx.error("No software version selected.")
-        else:
+        software_version_tuple = self.ctx.load_job_data('hardware_audit_version')
+        if software_version_tuple:
+            software_version = software_version_tuple[0]
             self.ctx.info("Hardware audit for software release version " + str(software_version))
+        else:
+            self.ctx.error("No software version selected.")
 
-        if self.ctx.load_data('hardware_audit_override_hw_req') and \
-           self.ctx.load_data('hardware_audit_override_hw_req')[0] == "1":
+        override_hw_req_tuple = self.ctx.load_job_data('override_hw_req')
+        if override_hw_req_tuple and override_hw_req_tuple[0] == "1":
             override_hw_req = True
             log_and_post_status(self.ctx,
                                 "Running hardware audit to check minimal requirements for card types and states.")
         else:
             override_hw_req = False
             log_and_post_status(self.ctx, "Running hardware audit on all nodes.")
-
-        # reset the values so that the hardware audit will not assume that the request
-        # comes from Pre-Migrate the next time hardware audit runs.
-        self.ctx.save_data('hardware_audit_override_hw_req', '')
 
         with open(SUPPORTED_HW_JSON) as supported_hw_file:
             supported_hw = json.load(supported_hw_file)
@@ -208,7 +197,8 @@ class Plugin(CSMPlugin):
         fpd_relevant_nodes = self._check_if_hw_supported_and_in_valid_state(inventory,
                                                                             supported_hw[software_version],
                                                                             override_hw_req)
-        self.ctx.save_data("fpd_relevant_nodes", fpd_relevant_nodes)
+        self.ctx.save_job_data("fpd_relevant_nodes", fpd_relevant_nodes)
+
         log_and_post_status(self.ctx, "Hardware audit completed successfully.")
 
         # Refresh package and inventory information

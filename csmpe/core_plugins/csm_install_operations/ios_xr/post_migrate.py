@@ -29,11 +29,8 @@ import re
 import time
 
 from csmpe.plugins import CSMPlugin
-from csmpe.context import PluginError
-from migration_lib import wait_for_final_band, log_and_post_status
-from csmpe.core_plugins.csm_custom_commands_capture.plugin import Plugin as CmdCapturePlugin
+from migration_lib import wait_for_final_band, log_and_post_status, run_additional_custom_commands
 from csmpe.core_plugins.csm_get_inventory.exr.plugin import get_package, get_inventory
-from pre_migrate import FINAL_CAL_CONFIG
 
 TIMEOUT_FOR_COPY_CONFIG = 3600
 
@@ -49,77 +46,6 @@ class Plugin(CSMPlugin):
     name = "Post-Migrate Plugin"
     platforms = {'ASR9K'}
     phases = {'Post-Migrate'}
-
-    def _copy_file_from_eusb_to_harddisk(self, filename):
-        """
-        Copy file from eUSB partition(/eusbb/backup_config/ in eXR) to /harddisk:.
-
-        :param filename: the string name of the file you want to copy from /eusbb/backup_config/
-        :return: True if no error occurred.
-        """
-
-        self.ctx.send("run", wait_for_string="\]\$")
-
-        output = self.ctx.send("ls /eusbb/backup_config/{}".format(filename), wait_for_string="\]\$")
-
-        if "No such file" in output:
-            self.ctx.error("{} is missing in /eusbb/backup_config/ on device after migration.".format(filename))
-
-        self.ctx.send("cp /eusbb/backup_config/{0} /harddisk:/{0}".format(filename),
-                      timeout=300,
-                      wait_for_string="\]\$")
-
-        self.ctx.send("exit")
-
-        return True
-
-    def _quit_config(self):
-        """Quit the config mode without committing any changes."""
-        def send_no(ctx):
-            ctx.ctrl.sendline("no")
-            return True
-
-        def timeout(ctx):
-            ctx.message = "Timeout upgrading FPD."
-            return False
-
-        UNCOMMITTED_CHANGES = re.compile("Uncommitted changes found, commit them\? \[yes/no/CANCEL\]")
-        pat2 = "Uncommitted changes found, commit them before exiting\(yes/no/cancel\)\? \[cancel\]"
-        UNCOMMITTED_CHANGES_2 = re.compile(pat2)
-        RUN_PROMPT = re.compile("#")
-
-        TIMEOUT = self.ctx.TIMEOUT
-
-        events = [UNCOMMITTED_CHANGES, UNCOMMITTED_CHANGES_2, RUN_PROMPT, TIMEOUT]
-        transitions = [
-            (UNCOMMITTED_CHANGES, [0], 1, send_no, 20),
-            (UNCOMMITTED_CHANGES_2, [0], 1, send_no, 20),
-            (RUN_PROMPT, [0], 0, None, 0),
-            (RUN_PROMPT, [1], -1, None, 0),
-            (TIMEOUT, [0, 1], -1, timeout, 0),
-
-        ]
-
-        if not self.ctx.run_fsm("Quit from config mode", "end", events, transitions, timeout=60):
-            self.ctx.error("Failed to exit from the config mode. Please check session.log.")
-
-    def _load_admin_config(self, filename):
-        """Load the admin/calvados configuration."""
-        self.ctx.send("config", wait_for_string="#")
-
-        output = self.ctx.send("load merge {}".format(filename), timeout=600, wait_for_string="#")
-
-        if "Error" in output or "failed" in output:
-            self._quit_config()
-            self.ctx.send("exit")
-            self.ctx.error("Aborted committing admin Calvados configuration. Please check session.log for errors.")
-        else:
-            output = self.ctx.send("commit", timeout=600, wait_for_string="#")
-            if "failure" in output:
-                self._quit_config()
-                self.ctx.send("exit")
-                self.ctx.error("Failure to commit admin configuration. Please check session.log.")
-            self.ctx.send("end")
 
     def _check_fpds_for_upgrade(self):
         """Check if any FPD's need upgrade, if so, upgrade all FPD's on all locations."""
@@ -202,47 +128,15 @@ class Plugin(CSMPlugin):
 
         log_and_post_status(self.ctx, "Waiting for all nodes to come to FINAL Band.")
         if not wait_for_final_band(self.ctx):
-            log_and_post_status(self.ctx, "Warning: Not all nodes are in FINAL Band after 25 minutes.")
+            self.ctx.warning("Warning: Not all nodes are in FINAL Band after 25 minutes.")
 
-        try:
-            self.ctx.custom_commands = ["show running-config"]
-            cmd_capture_plugin = CmdCapturePlugin(self.ctx)
-            cmd_capture_plugin.run()
-        except PluginError as e:
-            log_and_post_status(self.ctx,
-                                "Failed to capture 'show running-config' - ({}): {}".format(e.errno, e.strerror))
+        log_and_post_status(self.ctx, "Capturing new IOS XR and Calvados configurations.")
 
-        log_and_post_status(self.ctx, "Loading the migrated Calvados configuration.")
-        self.ctx.send("admin")
-        self._copy_file_from_eusb_to_harddisk(FINAL_CAL_CONFIG)
-        self._load_admin_config(FINAL_CAL_CONFIG)
-
-        try:
-            # This is still in admin mode
-            output = self.ctx.send("show running-config", timeout=2200)
-            file_name = self.ctx.save_to_file("admin show running-config", output)
-            if file_name is None:
-                log_and_post_status(self.ctx,
-                                    "Unable to save '{}' output to file: {}".format("admin show running-config",
-                                                                                    file_name))
-            else:
-                log_and_post_status(self.ctx,
-                                    "Output of '{}' command saved to file: {}".format("admin show running-config",
-                                                                                      file_name))
-        except Exception as e:
-            log_and_post_status(self.ctx, str(type(e)) + " when trying to capture 'admin show running-config'.")
-
-        self.ctx.send("exit")
+        run_additional_custom_commands(self.ctx, {"show running-config", "admin show running-config"})
 
         self._check_fpds_for_upgrade()
 
-        try:
-            self.ctx.custom_commands = ["show platform"]
-            cmd_capture_plugin = CmdCapturePlugin(self.ctx)
-            cmd_capture_plugin.run()
-        except PluginError as e:
-            log_and_post_status(self.ctx,
-                                "Failed to capture 'show platform' - ({}): {}".format(e.errno, e.strerror))
+        run_additional_custom_commands(self.ctx, {"show platform"})
 
         # Refresh package and inventory information
         get_package(self.ctx)

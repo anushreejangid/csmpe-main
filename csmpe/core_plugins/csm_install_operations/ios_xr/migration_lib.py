@@ -2,6 +2,9 @@ import time
 import re
 import json
 
+from csmpe.context import PluginError
+from csmpe.core_plugins.csm_custom_commands_capture.plugin import Plugin as CmdCapturePlugin
+
 SUPPORTED_HW_JSON = "./asr9k_64bit/migration_supported_hw.json"
 
 ADMIN_RP = "\d+/RS?P\d+"
@@ -22,9 +25,9 @@ def parse_exr_admin_show_platform(output):
         line = line.strip()
         if len(line) > 0 and line[0].isdigit():
             node = line[:10].strip()
-            print "node = *{}*".format(node)
+            # print "node = *{}*".format(node)
             node_type = line[10:34].strip(),
-            print "node_type = *{}*".format(node_type)
+            # print "node_type = *{}*".format(node_type)
             inventory[node] = node_type
     return inventory
 
@@ -57,7 +60,7 @@ def parse_admin_show_platform(output):
                 'config_state': line[59:].strip()
             }
             inventory.append((node, entry))
-            print node
+            # print node
 
     return inventory
 
@@ -96,7 +99,7 @@ def get_all_supported_nodes(ctx, supported_cards):
 
 def get_version(ctx):
     output = ctx.send("show version | include Version")
-    version = re.search("Version\s*?(\d+\.\d+\.\d+)(?:\.\d+I)?", output)
+    version = re.search("Version\s*?(\d+\.\d+)\.\d+(?:\.\d+I)?", output)
     if not version:
         ctx.error("Failure to retrieve release number.")
     return version.group(1)
@@ -178,3 +181,30 @@ def check_sw_status_admin(supported_nodes, output):
                 if "OPERATIONAL" not in sw_status:
                     return False
     return True
+
+
+def run_additional_custom_commands(ctx, additional_commands):
+    """
+    Help method to run additional custom commands besides the ones defined by user
+    :param ctx: plugin context (PluginContext)
+    :param additional_commands: a set containing all the custom commands you wish to run
+    :return: None
+    """
+    user_defined_custom_commands = ctx.custom_commands
+
+    if type(user_defined_custom_commands) is list:
+        for command in user_defined_custom_commands:
+            if command in additional_commands:
+                additional_commands.remove(command)
+
+    if additional_commands:
+        ctx.custom_commands = list(additional_commands)
+        try:
+            cmd_capture_plugin = CmdCapturePlugin(ctx)
+            cmd_capture_plugin.run()
+        except PluginError as e:
+            ctx.warning("Failed to capture output of a command. Error: {}".format(e))
+
+        ctx.custom_commands = user_defined_custom_commands
+
+    return

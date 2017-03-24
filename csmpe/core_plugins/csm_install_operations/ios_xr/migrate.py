@@ -28,10 +28,7 @@
 import re
 
 from csmpe.plugins import CSMPlugin
-from csmpe.context import PluginError
-from csmpe.core_plugins.csm_custom_commands_capture.plugin import Plugin as CmdCapturePlugin
-from condoor import ConnectionAuthenticationError, ConnectionError
-from migration_lib import wait_for_final_band, log_and_post_status
+from migration_lib import wait_for_final_band, log_and_post_status, run_additional_custom_commands
 from csmpe.core_plugins.csm_get_inventory.exr.plugin import get_package, get_inventory
 from csmpe.core_plugins.csm_install_operations.utils import update_device_info_udi
 
@@ -129,85 +126,14 @@ class Plugin(CSMPlugin):
                                                                                          config_filename))
         return True
 
-    def _configure_authentication(self, host):
-        """
-        After device is reloaded to boot eXR image from eUSB, the image will get baked,
-        eventually the device prompts for reconfiguration of username and password to login.
-        After that, the device prompts for login and then we will get XR prompt.
-        An FSM is created to support that.
-
-        :return: None if no error occurred.
-        """
-
-        connection_param = host.connection_param[0]
-
-        def send_return(ctx):
-            ctx.ctrl.send("\r\n")
-            return True
-
-        def send_username(ctx):
-            ctx.ctrl.sendline(connection_param.username)
-            return True
-
-        def send_password(ctx):
-            ctx.ctrl.sendline(connection_param.password)
-            return True
-
-        TIMEOUT = self.ctx.TIMEOUT
-
-        events = [ESCAPE_CHAR, PASSWORD_OK, SET_USERNAME, SET_PASSWORD, USERNAME_PROMPT, PASSWORD_PROMPT,
-                  XR_PROMPT, PRESS_RETURN, UNABLE_TO_CONNECT,
-                  CONNECTION_REFUSED, RESET_BY_PEER, PERMISSION_DENIED,
-                  AUTH_FAILED, TIMEOUT]
-
-        transitions = [
-            (ESCAPE_CHAR, [0, 1], 1, None, 20),
-            (PASSWORD_OK, [0, 1], 1, send_return, 10),
-            (PASSWORD_OK, [6], 6, send_return, 10),
-            (PRESS_RETURN, [0, 1], 1, send_return, 10),
-            (PRESS_RETURN, [6], 6, send_return, 10),
-            (SET_USERNAME, [0, 1, 2, 3], 4, send_username, 20),
-            (SET_USERNAME, [4], 4, None, 1),
-            (SET_PASSWORD, [4], 5, send_password, 10),
-            (SET_PASSWORD, [5], 6, send_password, 10),
-            (USERNAME_PROMPT, [0, 1, 6, 7], 8, send_username, 10),
-            (USERNAME_PROMPT, [8], 8, None, 10),
-            (PASSWORD_PROMPT, [8], 9, send_password, 30),
-            (XR_PROMPT, [0, 9, 10], -1, None, 10),
-
-            (UNABLE_TO_CONNECT, [0, 1], 11, ConnectionError("Unable to connect", self.ctx._connection.hostname), 10),
-            (CONNECTION_REFUSED, [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10], 11,
-             ConnectionError("Connection refused", "i"), 1),
-
-            (RESET_BY_PEER, [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10], 11,
-             ConnectionError("Connection reset by peer", self.ctx._connection.hostname), 1),
-
-            (PERMISSION_DENIED, [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10], 11,
-             ConnectionAuthenticationError("Permission denied", self.ctx._connection.hostname), 1),
-
-            (AUTH_FAILED, [6, 9], 11, ConnectionAuthenticationError("Authentication failed",
-                                                                    self.ctx._connection.hostname), 1),
-            (TIMEOUT, [0], 1, None, 20),
-            (TIMEOUT, [1], 2, None, 40),
-            (TIMEOUT, [2], 3, None, 60),
-            (TIMEOUT, [3, 7], 11, ConnectionError("Timeout waiting to connect", self.ctx._connection.hostname), 10),
-            (TIMEOUT, [6], 7, None, 20),
-            (TIMEOUT, [9], 10, None, 60),
-        ]
-
-        if not self.ctx.run_fsm("Reconfiguring authentication", "", events, transitions, timeout=30):
-            self.ctx.error("Failed to connect to device after reload.")
-
-    def _reload_all(self, host):
+    def _reload_all(self):
         """Reload all nodes to boot eXR image."""
         self.ctx.reload(reload_timeout=MIGRATION_TIME_OUT)
 
-        return self._wait_for_reload(host)
+        return self._wait_for_reload()
 
-    def _wait_for_reload(self, host):
+    def _wait_for_reload(self):
         """Wait for all nodes to come up with max timeout as 18 minutes after the first RSP/RP comes up."""
-        self._configure_authentication(host)
-
         log_and_post_status(self.ctx, "Waiting for all nodes to come to FINAL Band.")
         if wait_for_final_band(self.ctx):
             log_and_post_status(self.ctx, "All nodes are in FINAL Band.")
@@ -217,6 +143,7 @@ class Plugin(CSMPlugin):
         return True
 
     def run(self):
+
         host = None
         try:
             host = self.ctx.get_host
@@ -228,17 +155,13 @@ class Plugin(CSMPlugin):
 
         log_and_post_status(self.ctx,
                             "Run migration script to extract the image and boot files and set boot mode in device")
+
         self._run_migration_script()
 
         log_and_post_status(self.ctx, "Reload device to boot ASR9K-64 image.")
-        self._reload_all(host)
+        self._reload_all()
 
-        try:
-            self.ctx.custom_commands = ["show platform"]
-            cmd_capture_plugin = CmdCapturePlugin(self.ctx)
-            cmd_capture_plugin.run()
-        except PluginError as e:
-            log_and_post_status(self.ctx, "Failed to capture 'show platform' - ({}): {}".format(e.errno, e.strerror))
+        run_additional_custom_commands(self.ctx, {"show platform"})
 
         # Refresh package and inventory information
         get_package(self.ctx)

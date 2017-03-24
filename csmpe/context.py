@@ -182,15 +182,38 @@ class PluginContext(object):
     def save_data(self, key, data):
         """
         Stores (data, timestamp) tuple for key adding timestamp
+        This tuple is saved to host context data
         """
         self._csm.save_data(key, [data, time()])
         self.info("Key '{}' saved in CSM storage".format(key))
 
     def load_data(self, key):
         """
-        Loads (data, timestamp) tuple for the key
+        Loads (data, timestamp) tuple for the key from host context data
         """
         result = self._csm.load_data(key)
+        if result:
+            self.info("Key '{}' loaded from CSM storage".format(key))
+            if isinstance(result, list):
+                return tuple(result)
+            else:
+                return result, None
+        return None, None
+
+    # Storage API
+    def save_job_data(self, key, data):
+        """
+        Stores (data, timestamp) tuple for key adding timestamp
+        This tuple is saved to install job data
+        """
+        self._csm.save_job_data(key, [data, time()])
+        self.info("Key '{}' saved in CSM storage".format(key))
+
+    def load_job_data(self, key):
+        """
+        Loads (data, timestamp) tuple for the key
+        """
+        result = self._csm.load_job_data(key)
         if result:
             self.info("Key '{}' loaded from CSM storage".format(key))
             if isinstance(result, list):

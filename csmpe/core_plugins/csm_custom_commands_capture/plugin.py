@@ -34,7 +34,7 @@ class Plugin(CSMPlugin):
     """This plugin captures custom commands and stores in the log directory."""
     name = "Custom Commands Capture Plugin"
     platforms = {'ASR9K', 'CRS', 'NCS1K', 'NCS4K', 'NCS5K', 'NCS5500', 'NCS6K', 'ASR900', 'N6K', 'IOS-XRv'}
-    phases = {'Pre-Upgrade', 'Post-Upgrade'}
+    phases = {'Pre-Upgrade', 'Post-Upgrade', 'Migration-Audit', 'Pre-Migrate', 'Migrate', 'Post-Migrate'}
 
     def run(self):
         command_list = self.ctx.custom_commands
