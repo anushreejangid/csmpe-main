@@ -169,14 +169,24 @@ class PluginContext(object):
         self._logger.info(self._format_log(message))
 
     def error(self, message):
+        self.save_job_info('ERROR:' + self._format_log(message))
+
         """Log ERROR message"""
         self._logger.error(self._format_log(message))
         self.disconnect()
         raise PluginError
 
     def warning(self, message):
+        self.save_job_info('WARNING: ' + self._format_log(message))
+
         """Log WARNING message"""
         self._logger.warning(self._format_log(message))
+
+    def save_job_info(self, message):
+        try:
+            self._csm.save_job_info(message)
+        except AttributeError:
+            pass
 
     # Storage API
     def save_data(self, key, data):

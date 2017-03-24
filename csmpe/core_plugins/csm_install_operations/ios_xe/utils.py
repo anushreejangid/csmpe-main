@@ -58,7 +58,8 @@ def number_of_rsp(ctx):
         count = 1
         return count
 
-    output = ctx.send("show platform | count RSP")
+    # show platform can take more than 1 minute after router reload. Issue No. 47
+    output = ctx.send("show platform | count RSP", timeout=600)
     if output:
         m = re.search('Number.*= (\d+)', output)
         if m:
@@ -580,7 +581,8 @@ def xe_show_platform(ctx):
     """
     platform_info = {}
     cmd = 'show platform'
-    output = ctx.send(cmd)
+    # show platform can take more than 1 minute after router reload. Issue No. 47
+    output = ctx.send(cmd, timeout=600)
     if output:
         lines = string.split(output, '\n')
         lines = [x for x in lines if x]

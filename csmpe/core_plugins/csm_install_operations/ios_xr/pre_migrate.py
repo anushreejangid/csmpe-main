@@ -91,7 +91,8 @@ class Plugin(CSMPlugin):
         """Save the output of 'show platform' to session log"""
 
         cmd = "show platform"
-        output = self.ctx.send(cmd)
+        # show platform can take more than 1 minute after router reload. Issue No. 47
+        output = self.ctx.send(cmd, timeout=600)
         file_name = self.ctx.save_to_file(cmd, output)
         if file_name is None:
             self.ctx.warning("Unable to save '{}' output to file: {}".format(cmd, file_name))

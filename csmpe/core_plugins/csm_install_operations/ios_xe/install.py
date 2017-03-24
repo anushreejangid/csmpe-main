@@ -94,7 +94,8 @@ def wait_for_reload(ctx):
 
         time.sleep(poll_time)
 
-        output = ctx.send('show platform')
+        # show platform can take more than 1 minute after router reload. Issue No. 47
+        output = ctx.send('show platform', timeout=600)
 
         ctx.info("output = {}".format(output))
 
