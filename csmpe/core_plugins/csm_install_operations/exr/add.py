@@ -29,6 +29,8 @@ from install import observe_install_add_remove
 from install import check_ncs6k_release, check_ncs4k_release
 from csmpe.core_plugins.csm_get_inventory.exr.plugin import get_package, get_inventory
 
+import re
+
 
 class Plugin(CSMPlugin):
     """This plugin adds packages from repository to the device."""
@@ -55,19 +57,14 @@ class Plugin(CSMPlugin):
         """
         if server_repository_url.startswith("sftp://") or server_repository_url.startswith("ftp://"):
 
-            if server_repository_url.count(":") != 2 or server_repository_url.count("@") != 1:
-                self.ctx.error("The server repository url provided - {} - ".format(server_repository_url) +
-                               "does not conform to <protocol>://<username>:<password>@<ip>/<directory>." +
-                               "Special characters ':' and '@' are not allowed in username, password or directory.")
-
-            front = server_repository_url.rsplit(":", 1)
-
-            end = front[1].split("@", 1)
-            url_without_password = front[0] + "@" + end[1]
+            rest_of_url = server_repository_url[server_repository_url.index('//') + 2:]
+            password = re.search(r':(.*)@', rest_of_url).group(1)
+            url_without_password = server_repository_url.replace(':' + password, '')
 
             cmd = "install add source {} {}".format(url_without_password, s_packages)
+
             output1 = self.ctx.send(cmd, wait_for_string="[Pp]assword:", timeout=60)
-            output2 = self.ctx.send(end[0], timeout=100, password=True)
+            output2 = self.ctx.send(password, timeout=100, password=True)
             output = output1 + output2
 
         elif server_repository_url.startswith("scp"):
