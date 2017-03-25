@@ -69,7 +69,7 @@ def wait_for_reload(ctx):
     ctx.disconnect()
     time.sleep(180)
 
-    ctx.reconnect(max_timeout=1500, force_discovery=True)  # 25 * 60 = 1500
+    ctx.reconnect(max_timeout=3600, force_discovery=True)  # 60 * 60 = 3600
     timeout = 3600
     poll_time = 30
     time_waited = 0
@@ -97,7 +97,7 @@ def wait_for_reload(ctx):
         # show platform can take more than 1 minute after router reload. Issue No. 47
         output = ctx.send('show platform', timeout=600)
 
-        ctx.info("output = {}".format(output))
+        ctx.info("show platform = {}".format(output))
 
         inventory = parse_show_platform(ctx, output)
         if validate_node_state(inventory):
