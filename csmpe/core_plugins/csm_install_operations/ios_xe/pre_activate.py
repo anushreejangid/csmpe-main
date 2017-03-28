@@ -81,13 +81,11 @@ class Plugin(CSMPlugin):
         pkg_family = install_package_family(pkg)
 
         if not pkg_family:
-            self.ctx.error("Unspported device image: {}".format(pkg))
-            return
+            self.ctx.info("Private device image: {}".format(pkg))
 
         if pkg_family not in supported_imgs[device_family]:
-            self.ctx.error("Unspported device image: {} on {}".
+            self.ctx.info("Private device image: {} on {}".
                            format(pkg, self.ctx._connection.platform))
-            return
 
         # check the RSP type between image and device:
         curr_rsp = None
@@ -104,8 +102,7 @@ class Plugin(CSMPlugin):
                 pkg_rsp = m.group(0)
 
             if curr_rsp and pkg_rsp and curr_rsp != pkg_rsp:
-                self.ctx.error("Incompatible Route processor in {} for this device {}".format(pkg, curr_rsp))
-                return False
+                self.ctx.info("Incompatible Route processor in {} for this device {}".format(pkg, curr_rsp))
 
         # Determine one of the following modes: consolidated, subpackage, or issu
 
