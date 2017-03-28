@@ -84,8 +84,7 @@ class Plugin(CSMPlugin):
             self.ctx.info("Private device image: {}".format(pkg))
 
         if pkg_family not in supported_imgs[device_family]:
-            self.ctx.info("Private device image: {} on {}".
-                           format(pkg, self.ctx._connection.platform))
+            self.ctx.info("Private device image: {} on {}".format(pkg, self.ctx._connection.platform))
 
         # check the RSP type between image and device:
         curr_rsp = None

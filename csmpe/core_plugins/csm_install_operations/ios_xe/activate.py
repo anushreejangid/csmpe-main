@@ -152,8 +152,8 @@ class Plugin(CSMPlugin):
                 if m:
                     image_type = m.group(1)
                     if image_type not in pkg:
-                        self.ctx.warning('The post-activate image type: {} while Activate package = '
-                                       '{}'.format(image_type, pkg))
+                        self.ctx.warning('The post-activate image type: {} while Activate '
+                                         'package = {}'.format(image_type, pkg))
                 else:
                     activate_success = False
                     self.ctx.info('show version = {}'.format(output))
