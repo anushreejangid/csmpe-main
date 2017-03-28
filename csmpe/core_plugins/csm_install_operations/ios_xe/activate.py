@@ -148,24 +148,26 @@ class Plugin(CSMPlugin):
             # mode is consolidated
             output = self.ctx.send('show version | include ^System image')
             if output:
-                m = re.search('(asr.*\.bin)', output)
+                m = re.search('"bootflash:(.*)"$', output)
                 if m:
-                    image_type = m.group(0)
+                    image_type = m.group(1)
                     if image_type not in pkg:
-                        self.ctx.error('The post-activate image type: {} while Activate package = '
+                        self.ctx.warning('The post-activate image type: {} while Activate package = '
                                        '{}'.format(image_type, pkg))
                 else:
                     activate_success = False
+                    self.ctx.info('show version = {}'.format(output))
                     self.ctx.warning('System image not found in show version: {}'.format(output))
             else:
                 activate_success = False
+                self.ctx.info('show version = {}'.format(output))
                 self.ctx.warning('System image not found in show version: {}'.format(output))
 
         if not activate_success:
             # Refresh package information
             get_package(self.ctx)
             update_device_info_udi(self.ctx)
-            self.ctx.error('Activte image {} has failed'.format(pkg))
+            self.ctx.warning('Activte image {} may have failed. Please see above warnings'.format(pkg))
 
         if mode == 'issu':
             # Remove all-in-one image from the installed folder
@@ -185,7 +187,7 @@ class Plugin(CSMPlugin):
 
         current_data = xe_show_platform(self.ctx)
         if not current_data:
-            self.ctx.error("The CLI 'show platform' is not able to determine the status of RP and SIP ")
+            self.ctx.warning("The CLI 'show platform' is not able to determine the status of RP and SIP ")
             return
 
         for Slot, Status in previous_data.items():
