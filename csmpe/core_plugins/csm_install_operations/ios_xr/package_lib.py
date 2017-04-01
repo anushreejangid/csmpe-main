@@ -81,6 +81,8 @@ class SoftwarePackage(object):
         # disk0:asr9k-mcast-px-5.3.2 (internal name)
         # asr9k-px-5.3.3.CSCuy81837.pie (external name)
         # disk0:asr9k-px-5.3.3.CSCuy81837-1.0.0 (internal name)
+        if 'services-infra' in self.package_name:
+            return True
         if "-px" in self.package_name:
             return "px"
         else:
