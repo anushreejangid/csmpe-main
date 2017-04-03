@@ -639,7 +639,7 @@ class Plugin(CSMPlugin):
             ]
 
             if not self.ctx.run_fsm("Upgrade FPD",
-                                    "admin upgrade hw-module fpd {} force location all".format(fpdtype),
+                                    "admin upgrade hw-module fpd {} location all".format(fpdtype),
                                     events, transitions, timeout=30):
                 self.ctx.error("Error while upgrading FPD subtype {}. Please check session.log".format(fpdtype))
 
