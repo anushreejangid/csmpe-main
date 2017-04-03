@@ -163,8 +163,7 @@ def installed_package_name(ctx, pkg_conf):
     m = re.search('pkginfo: PackageName: (.*)$', output)
     if m:
         img_name = m.group(1)
-        ctx.info("installed_package_name: installed "
-                 "name = {}".format(img_name))
+        ctx.info("installed package name = {} ".format(img_name))
         return img_name
     else:
         ctx.info("PackageName is not found in {}".format(pkg_conf))
@@ -182,16 +181,20 @@ def installed_package_version(ctx):
     # m = re.search('pkginfo: Build: (.*)$', output)
 
     cmd = 'show version | include Cisco IOS XE Software'
-    # Cisco IOS XE Software, Version 03.13.03.S - Extended Support Release
     output = ctx.send(cmd)
+    # Cisco IOS XE Software, Version 03.13.03.S - Extended Support Release
     m = re.search('Version (.*) -', output)
+
+    # Cisco IOS XE Software, Version 03.18.01.SP.156-2.SP1-ext
+    if not m:
+        m = re.search('Version (.*)$', output)
+
     if m:
         bld_version = m.group(1)
-        ctx.info("installed_package_version: installed "
-                 "version = {}".format(bld_version))
+        ctx.info("installed package version = {}".format(bld_version))
         return bld_version
     else:
-        ctx.info("Build version is not found in show version: {}".format(output))
+        ctx.warning("Build version is not found in show version: {}".format(output))
         return None
 
 
@@ -202,18 +205,19 @@ def installed_package_device(ctx):
     """
     cmd = 'show version running | include File:'
     # File: bootflash:/Image/asr900rsp2-rpbase.03.13.03.S.154-3.S3-ext.pkg, on: RP0
+    # File: bootflash:/Image/asr900rsp3-rpbase.V156_2_SP_SR680887239_5.pkg, on: RP0
     img_dev = None
     output = ctx.send(cmd)
     if output:
         lines = string.split(output, '\n')
         lines = [x for x in lines if x]
         for line in lines:
-            m = re.search('File: .*(asr.*)-\w+.\d+', line)
+            m = re.search('File: .*(asr\w+)-\w+.\w+', line)
             if m:
                 img_dev = m.group(1)
                 break
 
-    ctx.info("installed_package_device: device type = {}".format(img_dev))
+    ctx.info("installed package device = {}".format(img_dev))
     return img_dev
 
 
@@ -333,7 +337,8 @@ def remove_exist_subpkgs(ctx, folder, pkg):
     img_device = installed_package_device(ctx)
 
     if not bld_version or not img_device or not img_name:
-        ctx.error("Not able to determine the residual files")
+        ctx.warning("Not able to determine package name, version, or image device.")
+        ctx.warning("Packages left over from earlier installations will not be removed.")
         return
 
     # Remove all the bin files except the current install pkg
@@ -433,7 +438,7 @@ def check_issu_readiness(ctx, pkg, image_size):
         ctx.warning("Show version command error!")
         return False
 
-    m = re.search('asr.*-(.*)\.\d+\.\d+\.\d+.*', pkg)
+    m = re.search('asr\w+-(\w+)\.\w+', pkg)
     if m:
         pkg_name = m.group(1)
         if img_name != pkg_name:

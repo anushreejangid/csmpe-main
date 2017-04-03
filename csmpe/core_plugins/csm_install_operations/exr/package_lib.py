@@ -173,7 +173,9 @@ class SoftwarePackage(object):
                 # Special handling for mini, full, and sysadmin ISO on ASR9K-X64, NCS1K, NCS5K, NCS5500
                 # Example: ncs5500-mini-x.iso-6.0.1, asr9k-full-x64.iso-6.1.1
                 # Package type string is before the 3 part version string
-                if not match and sum([x in self.package_name for x in ['full', 'mini', 'sysadmin']]) > 0:
+
+                # External Name: ncs5k-goldenk9-x.iso-6.3.1.11I.0, Internal Name: ncs5k-goldenk9-x-6.3.1.11I
+                if not match and sum([x in self.package_name for x in ['full', 'mini', 'sysadmin', 'goldenk9']]) > 0:
                     # Use the three part match for these ISO packages
                     match = re.search('-\d+\.\d+\.\d+', self.package_name)
 

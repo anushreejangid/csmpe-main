@@ -468,28 +468,37 @@ def install_activate_deactivate(ctx, cmd):
 
     ABORTED = re.compile("aborted")
 
+    # REBOOT_PROMP for eXR reload response:
+    # This install operation will reload the sdr, continue?
+    #  [yes/no]:[yes]
+    # REBOOT_PROMP for NCS5K reload response:
+    # This install operation will reload the system, continue?
+    #  [yes/no]:[yes]
+
     # Seeing this message without the reboot prompt indicates a non-reload situation
     CONTINUE_IN_BACKGROUND = re.compile("Install operation will continue in the background")
     REBOOT_PROMPT = re.compile("This install operation will (?:reboot|reload) the sdr, continue")
+    RELOAD_PROMPT = re.compile("This install operation will reload the system, continue")
     RUN_PROMPT = re.compile("#")
     NO_IMPACT = re.compile("NO IMPACT OPERATION")
     ERROR = re.compile(re.escape("ERROR! there was an SU/ISSU done. please perform install commit before "
                                  "proceeding with any other prepare/activate/deactivate operation"))
     NOT_START = re.compile("Could not start this install operation")
 
-    #                  0                    1           2         3          4         5        6
-    events = [CONTINUE_IN_BACKGROUND, REBOOT_PROMPT, ABORTED, NO_IMPACT, RUN_PROMPT, ERROR, NOT_START]
+    #                  0                    1              2           3          4         5          6
+    events = [CONTINUE_IN_BACKGROUND, REBOOT_PROMPT, RELOAD_PROMPT, ABORTED, NO_IMPACT, RUN_PROMPT, ERROR, NOT_START]
     transitions = [
-        (CONTINUE_IN_BACKGROUND, [0], -1, handle_non_reload_activate_deactivate, 100),
-        (REBOOT_PROMPT, [0], -1, handle_reload_activate_deactivate, 100),
-        (NO_IMPACT, [0], -1, no_impact_warning, 20),
-        (RUN_PROMPT, [0], -1, handle_non_reload_activate_deactivate, 100),
-        (ABORTED, [0], -1, handle_aborted, 100),
+        (CONTINUE_IN_BACKGROUND, [0], -1, handle_non_reload_activate_deactivate, 300),
+        (REBOOT_PROMPT, [0], -1, handle_reload_activate_deactivate, 300),
+        (RELOAD_PROMPT, [0], -1, handle_reload_activate_deactivate, 300),
+        (NO_IMPACT, [0], -1, no_impact_warning, 60),
+        (RUN_PROMPT, [0], -1, handle_non_reload_activate_deactivate, 300),
+        (ABORTED, [0], -1, handle_aborted, 300),
         (ERROR, [0], -1, partial(a_error, ctx), 0),
-        (NOT_START, [0], -1, handle_not_start, 100),
+        (NOT_START, [0], -1, handle_not_start, 300),
     ]
 
-    if not ctx.run_fsm("ACTIVATE-OR-DEACTIVATE", cmd, events, transitions, timeout=100):
+    if not ctx.run_fsm("ACTIVATE-OR-DEACTIVATE", cmd, events, transitions, timeout=300):
         ctx.error("Failed: {}".format(cmd))
 
 
