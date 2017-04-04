@@ -273,10 +273,22 @@ def jsonparser(config_file, admin_active_console, admin_standby_console,
             except:
                 click.echo("ERROR! Json file {} failed to parse".format(tc_file_org))
                 continue
-        for idx, tc in enumerate(data):
+        result_data = []
+        for idx, tc in enumerate(data, 1):
+            result_i = {
+                "tc_id" : idx,
+                "message": "Not Run",
+                "status": "Blocked",
+                "TC": tc["TC"]
+            }
+            result_data.append(result_i)
+        result_file = os.path.join(log_dir, 'result.log')
+        with open(result_file, 'w') as fd_log:
+            fd_log.write(json.dumps(result_data, indent=4))
+        for idx, tc in enumerate(data,1):
             with open(tc_file) as fd:
                 data = json.load(fd)
-                tc = data[idx]
+                tc = data[idx - 1]
             #url, phase, cmd, log_dir, package, repository_url, plugin_name
             ctx = InstallContext()
             ctx.hostname = "Hostname"
@@ -293,8 +305,8 @@ def jsonparser(config_file, admin_active_console, admin_standby_console,
             ctx.success = False
             ctx.tc_name = tc.get("TC")
             if ctx.tc_name :
-                print("Executing TC No {} : {}".format(idx+1, ctx.tc_name))
-            ctx.tc_id = idx + 1
+                print("Executing TC No {} : {}".format(idx, ctx.tc_name))
+            ctx.tc_id = idx
             ctx.shell = tc.get("shell")
             ctx.requested_action = []
             if ctx.shell:

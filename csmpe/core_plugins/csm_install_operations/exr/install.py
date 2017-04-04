@@ -283,8 +283,7 @@ def observe_install_add_remove(ctx, output, has_tar=False):
         if has_tar is True:
             ctx.info("The operation {} stored".format(op_id))
     else:
-        log_install_errors(ctx, output)
-        ctx.error("Operation failed")
+        report_install_status(ctx, output=output)
         return  # for sake of clarity
 
     op_success = "Install operation will continue in the background"
@@ -308,20 +307,17 @@ def get_op_id(output):
     return -1
 
 def report_log(ctx, status, message):
-    data = {}
-    data['TC'] = ctx.tc_name
-    data['tc_id'] = ctx.tc_id
-    data['status'] = 'Pass' if status else 'Fail'
-    data['message'] = message
     result_file = os.path.join(ctx.log_directory, 'result.log')
-    is_append = os.path.isfile(result_file)
-    with open(result_file, 'a') as fd_log:
-        if is_append:
-            fd_log.write(",\n")
+    with open(result_file, 'r') as fd_log:
+      data = json.load(fd_log)
+    tc_id = ctx.tc_id - 1
+    data[tc_id]['status'] = 'Pass' if status else 'Fail'
+    data[tc_id]['message'] = message
+    with open(result_file, 'w') as fd_log:
         fd_log.write(json.dumps(data, indent=4))
     ctx.post_status("tc_id: {}, TC: {} :: {}".format(ctx.tc_id, ctx.tc_name, message))
 
-def report_install_status(ctx, op_id):
+def report_install_status(ctx, op_id=None, output=None):
     """
     :param ctx: CSM Context object
     :param op_id: operational ID
@@ -340,6 +336,14 @@ def report_install_status(ctx, op_id):
                 ctx.post_status("Operation {} failed".format(op_id))
 
         ctx.post_status("Operation {} finished successfully".format(op_id))
+    else:
+        status, message = match_pattern(ctx.pattern, output)
+        report_log(ctx, status, message)
+        log_install_errors(ctx, output)
+        if not status:
+            ctx.error("Operation failed with no op-id")
+        else:
+            ctx.post_status("Operation failed with no op-id")
 
 
 def handle_aborted(fsm_ctx):
