@@ -163,8 +163,7 @@ def installed_package_name(ctx, pkg_conf):
     m = re.search('pkginfo: PackageName: (.*)$', output)
     if m:
         img_name = m.group(1)
-        ctx.info("installed_package_name: installed "
-                 "name = {}".format(img_name))
+        ctx.info("installed package name = {} ".format(img_name))
         return img_name
     else:
         ctx.info("PackageName is not found in {}".format(pkg_conf))
@@ -192,8 +191,7 @@ def installed_package_version(ctx):
 
     if m:
         bld_version = m.group(1)
-        ctx.info("installed_package_version: installed "
-                 "version = {}".format(bld_version))
+        ctx.info("installed package version = {}".format(bld_version))
         return bld_version
     else:
         ctx.warning("Build version is not found in show version: {}".format(output))
@@ -219,7 +217,7 @@ def installed_package_device(ctx):
                 img_dev = m.group(1)
                 break
 
-    ctx.info("installed_package_device: device type = {}".format(img_dev))
+    ctx.info("installed package device = {}".format(img_dev))
     return img_dev
 
 
