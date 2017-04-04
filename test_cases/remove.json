@@ -1,0 +1,55 @@
+[
+    {
+       "TC" : "Add v1 optional packages ",
+       "shell" : "XR",
+       "operation" : "Add",
+       "repository_url" : "/harddisk:/",
+       "packages" : [ "v1_opt.tar" ],
+       "pattern" : [ "successfully" ],
+       "save_data" : { "operation_id" : "<id1>" }
+	  },
+    {
+       "TC" : "Add v2 optional packages",
+       "shell" : "XR",
+       "operation" : "Add",
+       "repository_url" : "/harddisk:/",
+       "packages" : [ "v2_opt.tar" ],
+       "pattern" : [ "successfully" ],
+       "save_data" : { "operation_id" : "<id2>" }
+    },
+    {
+       "TC" : "Remove using id",
+       "shell" : "XR",
+       "operation" : "Remove",
+       "pkg_id" : [ "<id2> "],
+       "pattern" : [ "successfully" ]
+    },
+    {
+       "TC" : "Remove using first valid and next invalid id",
+       "shell" : "XR",
+       "operation" : "Remove",
+       "pkg_id" : [ "<id1> ", "<id2>"],
+       "pattern" : [ "Invalid add operation id: <id2>" ]
+    },
+    {
+       "TC" : "Remove using first invalid and next valid id",
+       "shell" : "XR",
+       "operation" : "Remove",
+       "pkg_id" : [ "<id2> ", "<id1>"],
+       "pattern" : [ "Invalid add operation id: <id2>" ]
+    },
+    {
+       "TC" : "Remove using id",
+       "shell" : "XR",
+       "operation" : "Remove",
+       "pkg_id" : [ "<id1> "],
+       "pattern" : [ "successfully" ]
+    },    
+    {
+       "TC" : "Remove using all invalid id",
+       "shell" : "XR",
+       "operation" : "Remove",
+       "pkg_id" : [ "<id1> ", "<id2>"],
+       "pattern" : [ "Invalid add operation id: <id1>" ]
+    } 
+]

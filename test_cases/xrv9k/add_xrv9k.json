@@ -1,0 +1,29 @@
+[
+    {
+       "TC" : "Add a tar for SU from harddisk",
+       "shell" : "XR",
+       "operation" : "Add",
+       "repository_url" : "/harddisk:/",
+       "packages" : [ "xrv9k-mini-x-6.3.1.12I.iso" ],
+       "pattern" : [ "successfully" ],
+       "save_data" : { "operation_id" : "<id1>" }
+	},
+    {
+       "TC" : "Add a tar for SU from harddisk",
+       "shell" : "XR",
+       "operation" : "Add",
+       "repository_url" : "/harddisk:/",
+       "packages" : [ "xdrv9k-mini-x-6.3.1.12I.iso" ],
+       "pattern" : [ "aborted" ],
+       "save_data" : { "operation_id" : "<id1>" }
+    },
+    {
+       "TC" : "Add a tar for SU from harddisk",
+       "shell" : "XR",
+       "operation" : "Add",
+       "repository_url" : "/harddisk:/",
+       "packages" : [ "xrv9k-mini-x-6.3.1.12I.iso" ],
+       "pattern" : [ "successfully" ],
+       "save_data" : { "operation_id" : "<id1>" }
+    }
+]
