@@ -25,6 +25,8 @@
 # =============================================================================
 
 from csmpe.plugins import CSMPlugin
+from install import wait_for_prompt
+from install import process_save_data
 from install import observe_install_add_remove
 from install import check_ncs6k_release, check_ncs4k_release
 from csmpe.core_plugins.csm_get_inventory.exr.plugin import get_package, get_inventory
@@ -101,39 +103,37 @@ class Plugin(CSMPlugin):
     def run(self):
         check_ncs6k_release(self.ctx)
         check_ncs4k_release(self.ctx)
-
+        self.ctx.post_status("Install Add Plugin")
         server_repository_url = self.ctx.server_repository_url
         if server_repository_url is None:
             self.ctx.error("No repository provided")
             return
 
-        packages = self.ctx.software_packages
-        if packages is None:
+        s_packages = " ".join(self.ctx.software_packages)
+        if s_packages is None:
             self.ctx.error("No package list provided")
             return
-
-        has_tar = False
-
-        if self.ctx.family == 'NCS6K' or self.ctx.family == 'NCS4K':
-            s_packages = " ".join([package for package in packages
-                                   if ('iso' in package or 'pkg' in package or 'smu' in package or 'tar' in package)])
         else:
-            s_packages = " ".join([package for package in packages
-                                   if ('rpm' in package or 'iso' in package or 'tar' in package)])
+            self.ctx.post_status("Packages to be added: {}".format(s_packages))
+        if self.ctx.shell == "Admin":
+            self.ctx.info("Switching to admin mode")
+            self.ctx.send("admin", timeout=30)
 
-        if 'tar' in s_packages:
-            has_tar = True
-
-        if not s_packages:
-            self.ctx.error("None of the selected package(s) has an acceptable file extension.")
+        wait_for_prompt(self.ctx)
 
         self.ctx.info("Add Package(s) Pending")
         self.ctx.post_status("Add Package(s) Pending")
 
-        self.install_add(server_repository_url, s_packages, has_tar=has_tar)
+        self.install_add(server_repository_url, s_packages, has_tar=False)
 
         self.ctx.info("Package(s) Added Successfully")
 
         # Refresh package and inventory information
         get_package(self.ctx)
         get_inventory(self.ctx)
+        process_save_data(self.ctx)
+        if self.ctx.shell == "Admin":
+            self.ctx.info("Exiting from admin mode")
+            self.ctx.send("exit", timeout=30)
+        self.ctx.send("exit", timeout=30)
+

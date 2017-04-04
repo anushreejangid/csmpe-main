@@ -26,6 +26,7 @@
 
 from package_lib import SoftwarePackage
 from csmpe.plugins import CSMPlugin
+from install import wait_for_prompt
 from install import observe_install_add_remove
 from install import send_admin_cmd
 from csmpe.core_plugins.csm_get_inventory.exr.plugin import get_package, get_inventory
@@ -37,28 +38,31 @@ class Plugin(CSMPlugin):
     platforms = {'ASR9K', 'NCS1K', 'NCS4K', 'NCS5K', 'NCS5500', 'NCS6K', 'IOS-XRv'}
     phases = {'Remove'}
     os = {'eXR'}
+    
+    def remove_id(self, pkg_id):
+        cmd = "install remove id  {} ".format(pkg_id)
+        self.ctx.info("Install remove with id {}".format(cmd))
+        return cmd
+
+    def remove(self, pkgs):
+        cmd = "install remove  {} ".format(pkgs)
+        self.ctx.info("Install remove with packages {}".format(cmd))
+        return cmd
 
     def run(self):
-        packages = self.ctx.software_packages
-        if packages is None:
-            self.ctx.error("No package list provided")
-            return
+        self.ctx.post_status("Install Remove Plugin")
+        if hasattr(self.ctx, 'pkg_id'):
+            pkg_id = " ".join(self.ctx.pkg_id)
+            cmd = self.remove_id(pkg_id)
+        else:
+            packages = " ".join(self.ctx.software_packages)
+            cmd = self.remove(packages)
 
-        pkgs = SoftwarePackage.from_package_list(packages)
-
-        admin_installed_inact = SoftwarePackage.from_show_cmd(send_admin_cmd(self.ctx, "show install inactive"))
-        installed_inact = SoftwarePackage.from_show_cmd(self.ctx.send("show install inactive"))
-
-        installed_inact.update(admin_installed_inact)
-        packages_to_remove = pkgs & installed_inact
-
-        if not packages_to_remove:
-            self.ctx.warning("Packages already removed. Nothing to be removed")
-            return
-
-        to_remove = " ".join(map(str, packages_to_remove))
-
-        cmd = 'install remove {}'.format(to_remove)
+        if self.ctx.shell == "Admin":
+            self.ctx.send("admin", timeout=30)
+        if self.ctx.shell == "Admin":
+            self.ctx.send("admin", timeout=30)
+        wait_for_prompt(self.ctx)
 
         self.ctx.info("Remove Package(s) Pending")
         self.ctx.post_status("Remove Package(s) Pending")

@@ -25,9 +25,11 @@
 # THE POSSIBILITY OF SUCH DAMAGE.
 # =============================================================================
 from functools import partial
+import os
 import itertools
 import re
 import time
+import json
 from condoor import ConnectionError, CommandError
 from csmpe.core_plugins.csm_node_status_check.exr.plugin_lib import parse_show_platform
 from csmpe.core_plugins.csm_install_operations.actions import a_error
@@ -274,11 +276,11 @@ def observe_install_add_remove(ctx, output, has_tar=False):
 
     RP/0/RSP0/CPU0:CORFU#May 23 22:57:48 Install operation 28 aborted
     """
-    result = re.search('Install operation (\d+)', output)
+    result = re.search('nstall operation (\d+)', output)
     if result:
         op_id = result.group(1)
+        ctx.operation_id = op_id
         if has_tar is True:
-            ctx.operation_id = op_id
             ctx.info("The operation {} stored".format(op_id))
     else:
         log_install_errors(ctx, output)
@@ -290,6 +292,7 @@ def observe_install_add_remove(ctx, output, has_tar=False):
     if op_success in output:
         watch_operation(ctx, op_id)
     else:
+        report_install_status(ctx, ctx.operation_id)
         log_install_errors(ctx, output)
         ctx.error("Operation {} failed".format(op_id))
 
@@ -304,6 +307,19 @@ def get_op_id(output):
         return result.group(1)
     return -1
 
+def report_log(ctx, status, message):
+    data = {}
+    data['TC'] = ctx.tc_name
+    data['tc_id'] = ctx.tc_id
+    data['status'] = 'Pass' if status else 'Fail'
+    data['message'] = message
+    result_file = os.path.join(ctx.log_directory, 'result.log')
+    is_append = os.path.isfile(result_file)
+    with open(result_file, 'a') as fd_log:
+        if is_append:
+            fd_log.write(",\n")
+        fd_log.write(json.dumps(data, indent=4))
+    ctx.post_status("tc_id: {}, TC: {} :: {}".format(ctx.tc_id, ctx.tc_name, message))
 
 def report_install_status(ctx, op_id):
     """
@@ -311,13 +327,19 @@ def report_install_status(ctx, op_id):
     :param op_id: operational ID
     Peeks into the install log to see if the install operation is successful or not
     """
-    failed_oper = r'Install operation {} aborted'.format(op_id)
-    output = ctx.send("show install log {} detail".format(op_id))
-    if re.search(failed_oper, output):
-        log_install_errors(ctx, output)
-        ctx.error("Operation {} failed".format(op_id))
+    if op_id:
+        failed_oper = r'Install operation {} aborted'.format(op_id)
+        output = ctx.send("show install log {} detail".format(op_id))
+        status, message = match_pattern(ctx.pattern, output)
+        report_log(ctx, status, message)
+        if re.search(failed_oper, output):
+            log_install_errors(ctx, output)
+            if not status:
+                ctx.error("Operation {} failed".format(op_id))
+            else:
+                ctx.post_status("Operation {} failed".format(op_id))
 
-    ctx.info("Operation {} finished successfully".format(op_id))
+        ctx.post_status("Operation {} finished successfully".format(op_id))
 
 
 def handle_aborted(fsm_ctx):
@@ -500,6 +522,16 @@ def send_admin_cmd(ctx, cmd):
 
     return output
 
+def match_pattern(pattern, output):
+    if pattern:
+        regex = re.compile("%s" %"|".join(pattern))
+        result_list = regex.findall(output)
+        result = "^|^".join(result_list)
+
+        if result:
+            return True, "Pattern {} matched..!!!".format(result)
+        else:
+            return False, "Pattern {} not matched in {}!!!\n".format(pattern, output)
 
 def observe_install_remove_all(ctx, cmd, prompt):
     """
@@ -612,3 +644,43 @@ def observe_install_remove_all(ctx, cmd, prompt):
         ctx.post_status(message)
     else:
         ctx.error("Remove All Inactive Package(s) failed")
+
+def wait_for_prompt(ctx):
+    proceed = False
+    while not proceed:
+        ctx.info("checking if pending operation in progress")
+        try:
+            output = ctx.send(" show install request", timeout=30)
+        except ctx.CommandTimeoutError:
+            pass
+        if "No install operation in progress" in output:
+            proceed = True
+        if not proceed:
+            time.sleep(30)
+    return
+
+def process_save_data(ctx):
+    ctx.info("Processing data to save")
+    tc_id = ctx.tc_id - 1
+    log_dir = ctx.log_directory
+    tc_file = os.path.join(log_dir, 'tc.json')
+    with open(tc_file) as fd_tc:
+        data  = json.load(fd_tc)
+    tc = data[tc_id]
+    with open(tc_file) as fd_tc:
+        tc_file_content  = fd_tc.read()
+    if tc.get('save_data'):
+        save_data = tc['save_data']
+    else:
+        return
+    print save_data
+    for to_save, to_replace in save_data.iteritems():
+        to_save_value = getattr(ctx, to_save)
+        ctx.info("Replace {} with value {}".format(to_replace , to_save_value))
+        updated_content = tc_file_content.replace(to_replace, to_save_value)
+
+    ctx.info("Writing {}".format(updated_content))
+
+    with open(tc_file, 'w') as fd_tc:
+        fd_tc.write(updated_content)
+
