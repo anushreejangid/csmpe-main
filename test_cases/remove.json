@@ -5,7 +5,6 @@
        "operation" : "Add",
        "repository_url" : "/harddisk:/",
        "packages" : [ "v1_opt.tar" ],
-       "pattern" : [ "successfully" ],
        "save_data" : { "operation_id" : "<id1>" }
 	  },
     {

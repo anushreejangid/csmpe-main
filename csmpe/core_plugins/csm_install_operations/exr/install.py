@@ -545,6 +545,8 @@ def match_pattern(pattern, output):
             return True, "Pattern {} matched..!!!".format(result)
         else:
             return False, "Pattern {} not matched in {}!!!\n".format(pattern, output)
+    else:
+        return True, "Pattern unspecified. Proceeding..."
 
 def observe_install_remove_all(ctx, cmd, prompt):
     """
