@@ -60,8 +60,6 @@ class Plugin(CSMPlugin):
 
         if self.ctx.shell == "Admin":
             self.ctx.send("admin", timeout=30)
-        if self.ctx.shell == "Admin":
-            self.ctx.send("admin", timeout=30)
         wait_for_prompt(self.ctx)
 
         self.ctx.info("Remove Package(s) Pending")

@@ -28,6 +28,7 @@
 from package_lib import SoftwarePackage
 from csmpe.plugins import CSMPlugin
 from install import install_activate_deactivate
+from install import wait_for_prompt
 from install import send_admin_cmd
 from install import check_ncs6k_release, check_ncs4k_release
 from csmpe.core_plugins.csm_get_inventory.exr.plugin import get_package, get_inventory
@@ -102,25 +103,35 @@ class Plugin(CSMPlugin):
         check_ncs6k_release(self.ctx)
         check_ncs4k_release(self.ctx)
 
-        operation_id = None
-        if hasattr(self.ctx, 'operation_id'):
-            if self.ctx.operation_id != -1:
-                self.ctx.info("Using the operation ID: {}".format(self.ctx.operation_id))
-                operation_id = self.ctx.operation_id
+        packages = " ".join(self.ctx.software_packages)
+        pkg_id = None
+        
+        if hasattr(self.ctx , 'pkg_id'):
+            pkg_id = " ".join(self.ctx.pkg_id)
 
-        if operation_id is None or operation_id == -1:
-            tobe_activated = self.get_tobe_activated_pkg_list()
-            if not tobe_activated:
-                self.ctx.info("Nothing to be activated.")
-                return True
+        if self.ctx.shell == "Admin":
+            self.ctx.info("Switching to admin mode")
+            self.ctx.send("admin", timeout=30)
+        wait_for_prompt(self.ctx)
 
-        if operation_id is not None and operation_id != -1:
-            cmd = 'install activate id {}'.format(operation_id)
+        if pkg_id is not None:
+            if self.ctx.issu_mode:
+                cmd = "install activate issu id {} ".format(pkg_id)
+            else:
+                cmd = "install activate id {} ".format(pkg_id)
+        elif packages is not None:
+            if self.ctx.issu_mode:
+                cmd = 'install activate {}'.format(packages)
+            else:
+                cmd = 'install activate issu {}'.format(packages)
+        elif self.ctx.issu_mode:
+            cmd = 'install activate issu'
         else:
-            cmd = 'install activate {}'.format(tobe_activated)
-
+            self.ctx.error("Unable to form xr command for activate")
+            return
         self.ctx.info("Activate package(s) pending")
         self.ctx.post_status("Activate Package(s) Pending")
+        self.ctx.info("[DEBUG]CMD: {}".format(cmd))
 
         install_activate_deactivate(self.ctx, cmd)
 
