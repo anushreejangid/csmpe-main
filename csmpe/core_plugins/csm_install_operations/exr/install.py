@@ -537,11 +537,16 @@ def send_admin_cmd(ctx, cmd):
 
 def match_pattern(pattern, output):
     if pattern:
-        regex = re.compile("%s" %"|".join(pattern))
-        result_list = regex.findall(output)
-        result = "^|^".join(result_list)
-
-        if result:
+        result_pass, result_fail = True, False
+        if pattern['pass']:
+            regex = re.compile("%s" %"|".join(pattern['pass']))
+            result_list = regex.findall(output)
+            result_pass = "^|^".join(result_list)
+        if pattern['fail']:
+            regex = re.compile("%s" %"|".join(pattern['fail']))
+            result_list = regex.findall(output)
+            result_fail = "^|^".join(result_list)
+        if result_pass and not result_fail:
             return True, "Pattern {} matched..!!!".format(result)
         else:
             return False, "Pattern {} not matched in {}!!!\n".format(pattern, output)
