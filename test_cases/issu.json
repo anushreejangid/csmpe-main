@@ -1,0 +1,22 @@
+[
+	{
+	  "TC" : "Commit",
+	  "shell" : "XR",
+	  "operation" : "Commit"
+ 	},
+    {
+      "TC" : "Prepare issu ",
+      "shell" : "XR",
+      "operation" : "Prepare",
+      "mode" : "issu",
+      "packages" : [ "ncs6k-xr-6.2.2.12I" ],
+      "pattern" : { "pass": [ "success"] , "fail" : [ "Timeout", "abort"] }
+    },
+    {
+	  	"TC" : "Activate issu",
+	  	"shell" : "XR",
+	  	"operation" : "Activate",
+	  	"mode" : "issu",
+	  	"pattern" : { "pass": [ "success"] , "fail" : [ "Timeout", "abort", "failed"] }
+	}
+]

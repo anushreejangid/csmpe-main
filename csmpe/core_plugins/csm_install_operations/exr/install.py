@@ -30,7 +30,7 @@ import itertools
 import re
 import time
 import json
-from condoor import ConnectionError, CommandError
+from condoor import ConnectionError, CommandError, ConnectionTimeoutError
 from csmpe.core_plugins.csm_node_status_check.exr.plugin_lib import parse_show_platform
 from csmpe.core_plugins.csm_install_operations.actions import a_error
 
@@ -161,7 +161,7 @@ def watch_operation(ctx, op_id=0):
         if no_install in output:
             break
 
-    report_install_status(ctx, op_id)
+    #report_install_status(ctx, op_id)
 
 
 def validate_node_state(inventory):
@@ -196,6 +196,7 @@ def wait_for_reload(ctx):
 
     """
     begin = time.time()
+    pattern_to_match = r"RP\/0\/RP0\/CPU0\:ios(\([^()]*\))?#|RP\/[0-3]\/RS?P[0-1](?:\/CPU[0-3])?:ios#|rommon \d+ >|XML>"
     if not ctx.is_console:
         ctx.disconnect()
         ctx.post_status("Waiting for device boot to reconnect")
@@ -207,9 +208,15 @@ def wait_for_reload(ctx):
         ctx.info("Keeping console connected")
         ctx.post_status("Boot process started")
         ctx.info("Boot process started")
-        ctx.reload(reload_timeout=1500, no_reload_cmd=True)
-        ctx.info("Boot process finished")
-
+        #time.sleep(200)
+        #ctx.disconnect()
+        try:
+            ctx.reload(reload_timeout=1500, no_reload_cmd=True)  # 25 * 60 = 1500
+        except (ConnectionTimeoutError, ConnectionError) as e:
+            ctx.post_status("Connection error: {}".format(e))
+            ctx.reconnect(max_timeout=1500, force_discovery=True)
+            pass
+    ctx.info("Boot process finished")
     ctx.info("Device connected successfully")
 
     timeout = 3600
@@ -221,31 +228,32 @@ def wait_for_reload(ctx):
     ctx.info("Waiting for all nodes to come up")
     ctx.post_status("Waiting for all nodes to come up")
 
-    time.sleep(100)
+    #time.sleep(100)
 
-    while 1:
+    #while 1:
         # Wait till all nodes are in XR run state
-        time_waited += poll_time
-        if time_waited >= timeout:
-            break
+        #time_waited += poll_time
+        #if time_waited >= timeout:
+        #    break
 
-        time.sleep(poll_time)
+        #time.sleep(poll_time)
 
         # show platform can take more than 1 minute after router reload. Issue No. 47
-        output = ctx.send(cmd, timeout=600)
-        if xr_run in output:
-            inventory = parse_show_platform(output)
-            if validate_node_state(inventory):
-                ctx.info("All nodes in desired state")
-                elapsed = time.time() - begin
-                ctx.info("Overall outage time: {} minute(s) {:.0f} second(s)".format(elapsed // 60, elapsed % 60))
-                return True
+        #output = ctx.send(cmd, wait_for_string=pattern_to_match , timeout=600)
+        #if xr_run in output:
+        #    inventory = parse_show_platform(output)
+        #    if validate_node_state(inventory):
+        #        ctx.info("All nodes in desired state")
+        #        elapsed = time.time() - begin
+        #        ctx.info("Overall outage time: {} minute(s) {:.0f} second(s)".format(elapsed // 60, elapsed % 60))
+        #        return True
 
     # Some nodes did not come to run state
-    ctx.error("Not all nodes have came up: {}".format(output))
+    #report_log(ctx, False, "Not all nodes have came up: {}".format(output))
+    #ctx.error("Not all nodes have came up: {}".format(output))
     # this will never be executed
-    return False
-
+    #return False
+    return True
 
 def observe_install_add_remove(ctx, output, has_tar=False):
     """
@@ -293,7 +301,7 @@ def observe_install_add_remove(ctx, output, has_tar=False):
     else:
         report_install_status(ctx, ctx.operation_id)
         log_install_errors(ctx, output)
-        ctx.error("Operation {} failed".format(op_id))
+        #ctx.error("Operation {} failed".format(op_id))
 
 
 def get_op_id(output):
@@ -304,9 +312,17 @@ def get_op_id(output):
     result = re.search('Install operation (\d+)', output)
     if result:
         return result.group(1)
+    else:
+        op_progress = r"User admin, Op Id (\d+)"
+        cmd_show_install_request = "show install request"
+        output = plugin_ctx.send(cmd_show_install_request, timeout=300)
+        result = re.search(op_progress, output)
+        if result:
+            plugin_ctx.op_id = result.group(1)
+            return plugin_ctx.op_id
     return -1
 
-def report_log(ctx, status, message):
+def report_log(ctx, status, message="No output to match pattern"):
     result_file = os.path.join(ctx.log_directory, 'result.log')
     with open(result_file, 'r') as fd_log:
       data = json.load(fd_log)
@@ -324,7 +340,7 @@ def report_install_status(ctx, op_id=None, output=None):
     Peeks into the install log to see if the install operation is successful or not
     """
     if op_id:
-        failed_oper = r'Install operation {} aborted'.format(op_id)
+        failed_oper = r'aborted|failed'.format(op_id)
         output = ctx.send("show install log {} detail".format(op_id))
         status, message = match_pattern(ctx.pattern, output)
         report_log(ctx, status, message)
@@ -365,13 +381,13 @@ def handle_non_reload_activate_deactivate(fsm_ctx):
     :return: True if successful other False
     """
     global plugin_ctx
-
+    plugin_ctx.info("handle_non_reload_activate_deactivate")
     op_id = get_op_id(fsm_ctx.ctrl.before)
     if op_id == -1:
         return False
 
     watch_operation(plugin_ctx, op_id)
-
+    report_install_status(plugin_ctx, op_id)
     return True
 
 
@@ -381,7 +397,7 @@ def handle_reload_activate_deactivate(fsm_ctx):
     :return: True if successful other False
     """
     global plugin_ctx
-
+    plugin_ctx.info("handle_reload_activate_deactivate")
     op_id = get_op_id(fsm_ctx.ctrl.before)
     if op_id == -1:
         return False
@@ -401,6 +417,32 @@ def handle_reload_activate_deactivate(fsm_ctx):
 
     return True
 
+def handle_issu_reload(fsm_ctx):
+    """This handles a reload requiring a yes to start the op"""
+    global plugin_ctx
+    plugin_ctx.info("handle_issu_reload")
+    plugin_ctx.send("yes", timeout=30)
+    nextlevel = plugin_ctx.nextlevel
+    if nextlevel:
+        next_level_processing(plugin_ctx)
+    cmd_show_install_request = "show install request"
+    op_id = 0
+    while op_id <= 0:
+        output = plugin_ctx.send(cmd_show_install_request, timeout=30)
+        op_id = get_op_id(output)
+    try:
+        watch_operation(plugin_ctx, op_id)
+    except plugin_ctx.CommandTimeoutError:
+        plugin_ctx.info("The device already started the reload")
+        pass
+    #status = report_install_status(plugin_ctx, op_id)
+    success = wait_for_reload(plugin_ctx)
+    if not success:
+        report_log(ctx, False, "Reload or boot failure")
+        plugin_ctx.error("Reload or boot failure")
+        return False
+    report_install_status(plugin_ctx, op_id)
+    return success
 
 def no_impact_warning(fsm_ctx):
     plugin_ctx.warning("This was a NO IMPACT OPERATION. Packages are already active on device.")
@@ -510,9 +552,10 @@ def install_activate_deactivate(ctx, cmd):
     ERROR = re.compile(re.escape("ERROR! there was an SU/ISSU done. please perform install commit before "
                                  "proceeding with any other prepare/activate/deactivate operation"))
     NOT_START = re.compile("Could not start this install operation")
+    ISSU_PROMPT = re.compile("This install operation will start the issu")
 
-    #                  0                    1              2           3          4         5          6
-    events = [CONTINUE_IN_BACKGROUND, REBOOT_PROMPT, RELOAD_PROMPT, ABORTED, NO_IMPACT, RUN_PROMPT, ERROR, NOT_START]
+    #                  0                    1              2           3          4         5          6         7         8
+    events = [CONTINUE_IN_BACKGROUND, REBOOT_PROMPT, RELOAD_PROMPT, ABORTED, NO_IMPACT, RUN_PROMPT, ERROR, NOT_START, ISSU_PROMPT]
     transitions = [
         (CONTINUE_IN_BACKGROUND, [0], -1, handle_non_reload_activate_deactivate, 300),
         (REBOOT_PROMPT, [0], -1, handle_reload_activate_deactivate, 300),
@@ -522,6 +565,8 @@ def install_activate_deactivate(ctx, cmd):
         (ABORTED, [0], -1, handle_aborted, 300),
         (ERROR, [0], -1, partial(a_error, ctx), 0),
         (NOT_START, [0], -1, handle_not_start, 300),
+        (ISSU_PROMPT, [0], -1, handle_issu_reload, 300),
+
     ]
 
     if not ctx.run_fsm("ACTIVATE-OR-DEACTIVATE", cmd, events, transitions, timeout=300):
@@ -547,7 +592,7 @@ def match_pattern(pattern, output):
             result_list = regex.findall(output)
             result_fail = "^|^".join(result_list)
         if result_pass and not result_fail:
-            return True, "Pattern {} matched..!!!".format(result)
+            return True, "Pattern {} matched in {}..!!!".format(result_pass, output)
         else:
             return False, "Pattern {} not matched in {}!!!\n".format(pattern, output)
     else:
@@ -632,6 +677,7 @@ def observe_install_remove_all(ctx, cmd, prompt):
                 finish = True
             except ctx.CommandTimeoutError:
                 pass
+
 
             message = ""
             output = ctx.send(cmd_show_install_request, timeout=300)
