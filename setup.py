@@ -105,6 +105,7 @@ setup(
             '{} = csmpe.core_plugins.csm_install_operations.ios_xr.remove_all:Plugin'.format(uuid4()),
 
             '{} = csmpe.core_plugins.csm_install_operations.exr.add:Plugin'.format(uuid4()),
+            '{} = csmpe.core_plugins.csm_install_operations.exr.prepare:Plugin'.format(uuid4()),
             '{} = csmpe.core_plugins.csm_install_operations.exr.activate:Plugin'.format(uuid4()),
             '{} = csmpe.core_plugins.csm_install_operations.exr.commit:Plugin'.format(uuid4()),
             '{} = csmpe.core_plugins.csm_install_operations.exr.deactivate:Plugin'.format(uuid4()),

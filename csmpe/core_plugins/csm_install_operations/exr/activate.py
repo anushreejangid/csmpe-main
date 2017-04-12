@@ -102,9 +102,10 @@ class Plugin(CSMPlugin):
         """
         check_ncs6k_release(self.ctx)
         check_ncs4k_release(self.ctx)
+        self.ctx.post_status("Executing Install Activate plugin")
 
         packages = " ".join(self.ctx.software_packages)
-        pkg_id = None
+        pkg_id = []
         
         if hasattr(self.ctx , 'pkg_id'):
             pkg_id = " ".join(self.ctx.pkg_id)
@@ -114,16 +115,16 @@ class Plugin(CSMPlugin):
             self.ctx.send("admin", timeout=30)
         wait_for_prompt(self.ctx)
 
-        if pkg_id is not None:
+        if pkg_id:
             if self.ctx.issu_mode:
                 cmd = "install activate issu id {} ".format(pkg_id)
             else:
                 cmd = "install activate id {} ".format(pkg_id)
-        elif packages is not None:
+        elif packages:
             if self.ctx.issu_mode:
-                cmd = 'install activate {}'.format(packages)
-            else:
                 cmd = 'install activate issu {}'.format(packages)
+            else:
+                cmd = 'install activate {}'.format(packages)
         elif self.ctx.issu_mode:
             cmd = 'install activate issu'
         else:
@@ -139,7 +140,7 @@ class Plugin(CSMPlugin):
         self.ctx.info("Refreshing package and inventory information")
         self.ctx.post_status("Refreshing package and inventory information")
         # Refresh package and inventory information
-        get_package(self.ctx)
-        get_inventory(self.ctx)
+        #get_package(self.ctx)
+        #get_inventory(self.ctx)
 
         update_device_info_udi(self.ctx)

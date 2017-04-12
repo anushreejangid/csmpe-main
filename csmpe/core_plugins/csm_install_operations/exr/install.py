@@ -214,8 +214,30 @@ def wait_for_reload(ctx):
             ctx.reload(reload_timeout=1500, no_reload_cmd=True)  # 25 * 60 = 1500
         except (ConnectionTimeoutError, ConnectionError) as e:
             ctx.post_status("Connection error: {}".format(e))
-            ctx.reconnect(max_timeout=1500, force_discovery=True)
-            pass
+            try:
+                ctx.post_status("{}".format(ctx._connection.is_connected()))
+            except:
+                pass
+            try:
+                ctx.post_status("Trying to disconnect")
+                ctx.disconnect()
+                ctx.post_status("Disconnected")
+            except:
+                pass
+            try:
+                ctx.post_status("{}".format(ctx._connection.is_connected()))
+            except:
+                pass
+            try: 
+                ctx.post_status("Trying to reconnect")
+                ctx.reconnect(max_timeout=1500, force_discovery=True)
+                ctx.post_status("Reconnected")
+            except:
+                pass
+    try:
+        ctx.post_status("{}".format(ctx._connection.is_connected()))
+    except:
+        pass
     ctx.info("Boot process finished")
     ctx.info("Device connected successfully")
 
