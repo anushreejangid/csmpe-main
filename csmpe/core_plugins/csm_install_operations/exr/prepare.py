@@ -134,7 +134,9 @@ class Plugin(CSMPlugin):
         self.ctx.info("[DEBUG]CMD: {}".format(cmd))
 
         install_activate_deactivate(self.ctx, cmd)
-
+        if self.ctx.shell == "Admin":
+            self.ctx.info("exiting")
+            self.ctx.send("exit", timeout=30)
         self.ctx.info("Prepare package(s) done")
         self.ctx.info("Refreshing package and inventory information")
         self.ctx.post_status("Refreshing package and inventory information")

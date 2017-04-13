@@ -119,7 +119,7 @@ def watch_operation(ctx, op_id=0):
     # In ASR9K eXR, the output to show install request may be "The install prepare operation 9 is 40% complete"
     # or "The install service operation 9 is 40% complete" or "The install add operation 9 is 40% complete" and etc.
     op_progress = r"The install \w*?\s?operation {} is (\d+)% complete".format(op_id)
-    success = "Install operation {} finished successfully".format(op_id)
+    success = "Install operation {} completed|finished successfully".format(op_id)
 
     cmd_show_install_request = "show install request"
     ctx.info("Watching the operation {} to complete".format(op_id))
@@ -137,7 +137,6 @@ def watch_operation(ctx, op_id=0):
                 finish = True
             except ctx.CommandTimeoutError:
                 pass
-
             message = ""
             output = ctx.send(cmd_show_install_request, timeout=300)
             if op_id in output:
@@ -161,7 +160,7 @@ def watch_operation(ctx, op_id=0):
         if no_install in output:
             break
 
-    #report_install_status(ctx, op_id)
+    report_install_status(ctx, op_id)
 
 
 def validate_node_state(inventory):
@@ -230,7 +229,7 @@ def wait_for_reload(ctx):
                 pass
             try: 
                 ctx.post_status("Trying to reconnect")
-                ctx.reconnect(max_timeout=1500, force_discovery=True)
+                ctx.connect(force_discovery=True)
                 ctx.post_status("Reconnected")
             except:
                 pass
@@ -250,32 +249,37 @@ def wait_for_reload(ctx):
     ctx.info("Waiting for all nodes to come up")
     ctx.post_status("Waiting for all nodes to come up")
 
-    #time.sleep(100)
+    time.sleep(100)
 
-    #while 1:
+    while 1:
         # Wait till all nodes are in XR run state
-        #time_waited += poll_time
-        #if time_waited >= timeout:
-        #    break
+        time_waited += poll_time
+        if time_waited >= timeout:
+            break
 
-        #time.sleep(poll_time)
+        time.sleep(poll_time)
 
         # show platform can take more than 1 minute after router reload. Issue No. 47
-        #output = ctx.send(cmd, wait_for_string=pattern_to_match , timeout=600)
-        #if xr_run in output:
-        #    inventory = parse_show_platform(output)
-        #    if validate_node_state(inventory):
-        #        ctx.info("All nodes in desired state")
-        #        elapsed = time.time() - begin
-        #        ctx.info("Overall outage time: {} minute(s) {:.0f} second(s)".format(elapsed // 60, elapsed % 60))
-        #        return True
+        try:
+            if ctx.shell == "Admin":
+                ctx.info("Switching to admin mode")
+                ctx.send("admin", timeout=30)   
+        except:
+            pass    
+        output = ctx.send(cmd, wait_for_string=pattern_to_match , timeout=600)
+        if xr_run in output:
+            inventory = parse_show_platform(output)
+            if validate_node_state(inventory):
+                ctx.info("All nodes in desired state")
+                elapsed = time.time() - begin
+                ctx.info("Overall outage time: {} minute(s) {:.0f} second(s)".format(elapsed // 60, elapsed % 60))
+                return True
 
     # Some nodes did not come to run state
-    #report_log(ctx, False, "Not all nodes have came up: {}".format(output))
-    #ctx.error("Not all nodes have came up: {}".format(output))
+    report_log(ctx, False, "Not all nodes have came up: {}".format(output))
+    ctx.error("Not all nodes have came up: {}".format(output))
     # this will never be executed
-    #return False
-    return True
+    return False
 
 def observe_install_add_remove(ctx, output, has_tar=False):
     """
@@ -325,6 +329,11 @@ def observe_install_add_remove(ctx, output, has_tar=False):
         log_install_errors(ctx, output)
         #ctx.error("Operation {} failed".format(op_id))
 
+def get_sysadmin_op_id(output):
+    global plugin_ctx
+    result = re.search('Op Id (\d+)', output)
+    if result:
+        return result.group(1)
 
 def get_op_id(output):
     """
@@ -361,6 +370,12 @@ def report_install_status(ctx, op_id=None, output=None):
     :param op_id: operational ID
     Peeks into the install log to see if the install operation is successful or not
     """
+    try:
+        if ctx.shell == "Admin":
+            ctx.info("Switching to admin mode")
+            ctx.send("admin", timeout=30)
+    except:
+        pass
     if op_id:
         failed_oper = r'aborted|failed'.format(op_id)
         output = ctx.send("show install log {} detail".format(op_id))
@@ -466,6 +481,52 @@ def handle_issu_reload(fsm_ctx):
     report_install_status(plugin_ctx, op_id)
     return success
 
+def handle_admin_reload(fsm_ctx):
+    global plugin_ctx
+    pattern_to_match = r"RP\/0\/RP0\/CPU0\:ios(\([^()]*\))?#|RP\/[0-3]\/RS?P[0-1](?:\/CPU[0-3])?:ios#|rommon \d+ >|XML>|\w*sysadmin-vm:\w*"
+    xr_run = "IOS XR RUN"
+    plugin_ctx.send("yes", timeout=30)
+    cmd_show_install_request = "show install request"
+    op_id = 0
+    while op_id <= 0:
+        output = plugin_ctx.send(cmd_show_install_request, timeout=30)
+        time.sleep(30)
+        op_id = get_sysadmin_op_id(output)
+    try:
+        if ctx.shell == "Admin":
+            ctx.info("Switching to admin mode")
+            ctx.send("admin", timeout=30)   
+    except:
+        pass           
+    try:
+        watch_operation(plugin_ctx, op_id)
+    except plugin_ctx.CommandTimeoutError:
+        plugin_ctx.info("The device already started the reload")
+        pass
+    time.sleep(150)
+    status = report_install_status(plugin_ctx, op_id)
+    #success = wait_for_reload(plugin_ctx)
+    #if not success:
+        #report_log(ctx, False, "Reload or boot failure")
+        #plugin_ctx.error("Reload or boot failure")
+        #return False
+    try:
+        if plugin_ctx.shell == "Admin":
+            output = plugin_ctx.send("admin", timeout=30)
+    except:
+        pass
+    status = report_install_status(plugin_ctx, op_id)
+    cmd = "show platform"
+    output = plugin_ctx.send(cmd, wait_for_string=pattern_to_match , timeout=600)
+    if xr_run in output:
+        inventory = parse_show_platform(output)
+        if validate_node_state(inventory):
+            plugin_ctx.info("All nodes in desired state")
+            elapsed = time.time() - begin
+            plugin_ctx.info("Overall outage time: {} minute(s) {:.0f} second(s)".format(elapsed // 60, elapsed % 60))
+            return True and status
+    
+    return status and False
 def no_impact_warning(fsm_ctx):
     plugin_ctx.warning("This was a NO IMPACT OPERATION. Packages are already active on device.")
     return True
@@ -575,9 +636,11 @@ def install_activate_deactivate(ctx, cmd):
                                  "proceeding with any other prepare/activate/deactivate operation"))
     NOT_START = re.compile("Could not start this install operation")
     ISSU_PROMPT = re.compile("This install operation will start the issu")
+    ADMIN_RELOAD_PROMPT = re.compile("Do you want to proceed")
 
     #                  0                    1              2           3          4         5          6         7         8
-    events = [CONTINUE_IN_BACKGROUND, REBOOT_PROMPT, RELOAD_PROMPT, ABORTED, NO_IMPACT, RUN_PROMPT, ERROR, NOT_START, ISSU_PROMPT]
+    events = [CONTINUE_IN_BACKGROUND, REBOOT_PROMPT, RELOAD_PROMPT, ABORTED, NO_IMPACT, RUN_PROMPT, ERROR, NOT_START, ISSU_PROMPT,
+    ADMIN_RELOAD_PROMPT ]
     transitions = [
         (CONTINUE_IN_BACKGROUND, [0], -1, handle_non_reload_activate_deactivate, 300),
         (REBOOT_PROMPT, [0], -1, handle_reload_activate_deactivate, 300),
@@ -588,6 +651,7 @@ def install_activate_deactivate(ctx, cmd):
         (ERROR, [0], -1, partial(a_error, ctx), 0),
         (NOT_START, [0], -1, handle_not_start, 300),
         (ISSU_PROMPT, [0], -1, handle_issu_reload, 300),
+        (ADMIN_RELOAD_PROMPT, [0], -1, handle_admin_reload, 300),
 
     ]
 
