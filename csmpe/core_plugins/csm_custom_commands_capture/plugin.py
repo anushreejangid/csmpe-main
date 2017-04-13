@@ -28,7 +28,8 @@
 
 from csmpe.plugins import CSMPlugin
 from condoor.exceptions import CommandSyntaxError
-
+from csmpe.core_plugins.csm_install_operations.exr.install import send_admin_cmd, match_pattern
+from csmpe.core_plugins.csm_install_operations.exr.install import report_log
 
 class Plugin(CSMPlugin):
     """This plugin captures custom commands and stores in the log directory."""
@@ -38,18 +39,27 @@ class Plugin(CSMPlugin):
 
     def run(self):
         command_list = self.ctx.custom_commands
+        shell = self.ctx.shell
         if command_list:
             for cmd in command_list:
-                self.ctx.info("Capturing output of '{}'".format(cmd))
+                self.ctx.info("Capturing output of '{}' for shell {}".format(cmd,shell))
                 try:
-                    output = self.ctx.send(cmd, timeout=2200)
+                    if shell == "AdminBash" or shell == "Admin":
+                        self.ctx.info("Sending admin command")
+                        output = send_admin_cmd(self.ctx, cmd)
+                    else:
+                        output = self.ctx.send(cmd, timeout=2200)
+                    self.ctx.info("command sent {}".format(cmd))
+                    if self.ctx.pattern:
+                        status, message = match_pattern(self.ctx.pattern, output) 
+                        report_log(self.ctx, status, message)
                     file_name = self.ctx.save_to_file(cmd, output)
+
                     if file_name is None:
                         self.ctx.error("Unable to save '{}' output to file: {}".format(cmd, file_name))
                         return False
                 except CommandSyntaxError:
                     self.ctx.error("Command Syntax Error: '" + cmd + "'")
-
         else:
             self.ctx.info("No custom commands provided.")
             return True

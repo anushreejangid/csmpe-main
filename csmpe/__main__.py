@@ -207,8 +207,10 @@ def plugin_run(url, phase, cmd, log_dir, package, id,  repository_url, plugin_na
 @click.option("--log_dir", "-l", type=click.Path(),
               help="Log directory. If not specified then default is /tmp")
 @click.option("--tc_loc", "-t", type=click.Path(), help="Test case file/dir location")
+@click.option("--v1_path", "-v1", type=click.Path(), help="Path for v1 packages")
+@click.option("--v2_path", "-v2", type=click.Path(), help="Path for v2 packages")
 def jsonparser(config_file, admin_active_console, admin_standby_console, 
-        xr_active_console, xr_standby_console, tc_loc, log_dir):
+        xr_active_console, xr_standby_console, tc_loc, log_dir, v1_path, v2_path):
     oper_plugin = {
                   "Add" : "Install Add Plugin",
                   "Remove" : "Install Remove Plugin",
@@ -325,9 +327,10 @@ def jsonparser(config_file, admin_active_console, admin_standby_console,
                     print("Plugin cmd {} with shell {} with plugin {}".format(cmd, ctx.shell, plugin_name))
                     if cmd:
                         if "Bash" in ctx.shell:
-                            cmd = "run " + cmd 
+                            cmd_list = [ "run " + c for c in cmd]
+                            print cmd_list
                             #ctx.requested_action = ["Pre-Upgrade"]
-                        ctx._custom_commands = [cmd]
+                        ctx._custom_commands = cmd_list
                         print ("Custom command {}".format(ctx.custom_commands))
                     else:
                         print "No command specified to execute"
