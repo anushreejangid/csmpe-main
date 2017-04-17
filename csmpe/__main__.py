@@ -296,15 +296,13 @@ def jsonparser(config_file, admin_active_console, admin_standby_console,
             ctx.hostname = "Hostname"
             urls = []
             if config.get('xr_standby_console'):
-                if isinstance(config['xr_standby_console'], list):
-                    urls.extend(config['xr_standby_console'])
-                else:
-                    urls.append(config['xr_standby_console'])
+                urls.extend(list(config['xr_standby_console']))
+            print("DEBUG: Urls {}".format(urls))
             urls.append(config['xr_active_console'])
-            urls = [url.encode('utf8') if isinstance(url, unicode) else url for url in urls ]
-            #ctx.host_urls = urls
-            ctx.host_urls = [ [ "telnet://root:lab@10.105.236.18:2012" ], [ "telnet://root:lab@10.105.236.18:2015" ]]
-            print("URL: {}, STANDBY: {}, ACTIVE: {}".format(ctx.host_urls, "", config['xr_active_console']))
+            urls = [[url.encode('utf8')] if isinstance(url, unicode) else [ url ]for url in urls ]
+            ctx.host_urls = urls
+            #ctx.host_urls = [ [ "telnet://root:lab@10.105.236.18:2012" ], [ "telnet://root:lab@10.105.236.18:2015" ]]
+            print("URL: {}".format(ctx.host_urls))
             ctx.success = False
             ctx.tc_name = tc.get("TC")
             if ctx.tc_name :

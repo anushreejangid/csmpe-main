@@ -542,7 +542,15 @@ def handle_not_start(fsm_ctx):
     plugin_ctx.error("Could not start this install operation because an install operation is still in progress")
     return False
 
-
+def handle_op_after_su(fsm_ctx):
+    """
+    :param ctx: FSM Context
+    :return: False
+    """
+    global plugin_ctx
+    plugin_ctx.post_status("{}".format(fsm_ctx.ctrl.before))
+    plugin_ctx.error("hello")
+    
 def install_activate_deactivate(ctx, cmd):
     """
     Abort Situation:
@@ -648,7 +656,7 @@ def install_activate_deactivate(ctx, cmd):
         (NO_IMPACT, [0], -1, no_impact_warning, 60),
         (RUN_PROMPT, [0], -1, handle_non_reload_activate_deactivate, 300),
         (ABORTED, [0], -1, handle_aborted, 300),
-        (ERROR, [0], -1, partial(a_error, ctx), 0),
+        (ERROR, [0], -1, handle_op_after_su, 0),
         (NOT_START, [0], -1, handle_not_start, 300),
         (ISSU_PROMPT, [0], -1, handle_issu_reload, 300),
         (ADMIN_RELOAD_PROMPT, [0], -1, handle_admin_reload, 300),
