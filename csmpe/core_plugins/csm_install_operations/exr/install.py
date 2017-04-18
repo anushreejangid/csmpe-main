@@ -397,6 +397,7 @@ def report_install_status(ctx, op_id=None, output=None):
             ctx.error("Operation failed with no op-id")
         else:
             ctx.post_status("Operation failed with no op-id")
+    return status
 
 
 def handle_aborted(fsm_ctx):
@@ -405,7 +406,8 @@ def handle_aborted(fsm_ctx):
     :return: True if successful other False
     """
     global plugin_ctx
-
+    if plugin_ctx.nextlevel:
+        nextlevel_processing(plugin_ctx)
     report_install_status(ctx=plugin_ctx, op_id=get_op_id(fsm_ctx.ctrl.before))
 
     # Indicates the failure
@@ -419,10 +421,15 @@ def handle_non_reload_activate_deactivate(fsm_ctx):
     """
     global plugin_ctx
     plugin_ctx.info("handle_non_reload_activate_deactivate")
+    plugin_ctx.info("Before {}".format(fsm_ctx.ctrl.before))
+    plugin_ctx.info("{}".format(fsm_ctx.ctrl.after))
+    out = fsm_ctx.ctrl.before
     op_id = get_op_id(fsm_ctx.ctrl.before)
+    if plugin_ctx.nextlevel:
+        nextlevel_processing(plugin_ctx)
     if op_id == -1:
-        return False
-
+        status = report_install_status(plugin_ctx, output=out)
+        return True
     watch_operation(plugin_ctx, op_id)
     report_install_status(plugin_ctx, op_id)
     return True
@@ -439,6 +446,8 @@ def handle_reload_activate_deactivate(fsm_ctx):
     if op_id == -1:
         return False
 
+    if plugin_ctx.nextlevel:
+        nextlevel_processing(plugin_ctx)
     try:
         watch_operation(plugin_ctx, op_id)
     except plugin_ctx.CommandTimeoutError:
@@ -461,7 +470,7 @@ def handle_issu_reload(fsm_ctx):
     plugin_ctx.send("yes", timeout=30)
     nextlevel = plugin_ctx.nextlevel
     if nextlevel:
-        next_level_processing(plugin_ctx)
+        nextlevel_processing(plugin_ctx)
     cmd_show_install_request = "show install request"
     op_id = 0
     while op_id <= 0:
@@ -527,8 +536,11 @@ def handle_admin_reload(fsm_ctx):
             return True and status
     
     return status and False
+
 def no_impact_warning(fsm_ctx):
     plugin_ctx.warning("This was a NO IMPACT OPERATION. Packages are already active on device.")
+    if plugin_ctx.nextlevel:
+        nextlevel_processing(plugin_ctx)
     return True
 
 
@@ -540,6 +552,8 @@ def handle_not_start(fsm_ctx):
     global plugin_ctx
 
     plugin_ctx.error("Could not start this install operation because an install operation is still in progress")
+    if plugin_ctx.nextlevel:
+        nextlevel_processing(plugin_ctx)
     return False
 
 def handle_op_after_su(fsm_ctx):
@@ -550,12 +564,16 @@ def handle_op_after_su(fsm_ctx):
     global plugin_ctx
     plugin_ctx.info("after {}".format(fsm_ctx.ctrl.after))
     plugin_ctx.info("before {}".format(fsm_ctx.ctrl.before))
+    if plugin_ctx.nextlevel:
+        nextlevel_processing(plugin_ctx)
     report_install_status(plugin_ctx, output=fsm_ctx.ctrl.after)
 
 def handle_admin_op_failure(fsm_ctx):
     global plugin_ctx
     plugin_ctx.info("after {}".format(fsm_ctx.ctrl.after))
     plugin_ctx.info("before {}".format(fsm_ctx.ctrl.before))
+    if plugin_ctx.nextlevel:
+        nextlevel_processing(plugin_ctx)
     report_install_status(plugin_ctx, output=fsm_ctx.ctrl.after)
 
 def install_activate_deactivate(ctx, cmd):
@@ -690,7 +708,7 @@ def match_pattern(pattern, output):
             regex = re.compile("%s" %"|".join(pattern['pass']))
             result_list = regex.findall(output)
             result_pass = "^|^".join(result_list)
-        if pattern['fail']:
+        if 'fail' in pattern:
             regex = re.compile("%s" %"|".join(pattern['fail']))
             result_list = regex.findall(output)
             result_fail = "^|^".join(result_list)
@@ -852,4 +870,36 @@ def process_save_data(ctx):
 
     with open(tc_file, 'w') as fd_tc:
         fd_tc.write(updated_content)
+
+def nextlevel_processing(ctx):
+    if ctx.nextlevel:
+        ctx.info("In next level processing {} ".format(ctx.nextlevel))
+
+        for cmds in ctx.nextlevel:
+            shell = cmds.get("shell")
+            cmd = cmds.get("command")
+            pattern = cmds.get("pattern")
+            if "Bash" in shell:
+                cmd_list = [ "run " + c for c in cmd]
+            else:
+                cmd_list = cmd
+            ctx.post_status("Commands {}".format(cmd_list))
+            if shell == "AdminBash":
+                self.ctx.send("admin", timeout=100)
+
+            for cmd in cmd_list:
+                cmd_out = ctx.send(cmd, timeout=200)
+
+            if shell == "AdminBash":
+                self.ctx.send("exit", timeout=100)
+
+            if pattern:
+                status, message = match_pattern(pattern, cmd_out)
+                report_log(ctx, status, message)
+                if not status:
+                    ctx.error("Pattern: {} not matched in Output: {}".format(pattern, cmd_out))
+    else:
+        ctx.info("No next level processing required")
+
+
 
