@@ -548,9 +548,16 @@ def handle_op_after_su(fsm_ctx):
     :return: False
     """
     global plugin_ctx
-    plugin_ctx.post_status("{}".format(fsm_ctx.ctrl.before))
-    plugin_ctx.error("hello")
-    
+    plugin_ctx.info("after {}".format(fsm_ctx.ctrl.after))
+    plugin_ctx.info("before {}".format(fsm_ctx.ctrl.before))
+    report_install_status(plugin_ctx, output=fsm_ctx.ctrl.after)
+
+def handle_admin_op_failure(fsm_ctx):
+    global plugin_ctx
+    plugin_ctx.info("after {}".format(fsm_ctx.ctrl.after))
+    plugin_ctx.info("before {}".format(fsm_ctx.ctrl.before))
+    report_install_status(plugin_ctx, output=fsm_ctx.ctrl.after)
+
 def install_activate_deactivate(ctx, cmd):
     """
     Abort Situation:
@@ -645,10 +652,11 @@ def install_activate_deactivate(ctx, cmd):
     NOT_START = re.compile("Could not start this install operation")
     ISSU_PROMPT = re.compile("This install operation will start the issu")
     ADMIN_RELOAD_PROMPT = re.compile("Do you want to proceed")
+    ADMIN_OP_FAILED = re.compile("result Operation failed.")
 
     #                  0                    1              2           3          4         5          6         7         8
     events = [CONTINUE_IN_BACKGROUND, REBOOT_PROMPT, RELOAD_PROMPT, ABORTED, NO_IMPACT, RUN_PROMPT, ERROR, NOT_START, ISSU_PROMPT,
-    ADMIN_RELOAD_PROMPT ]
+    ADMIN_RELOAD_PROMPT , ADMIN_OP_FAILED, ]
     transitions = [
         (CONTINUE_IN_BACKGROUND, [0], -1, handle_non_reload_activate_deactivate, 300),
         (REBOOT_PROMPT, [0], -1, handle_reload_activate_deactivate, 300),
@@ -660,6 +668,7 @@ def install_activate_deactivate(ctx, cmd):
         (NOT_START, [0], -1, handle_not_start, 300),
         (ISSU_PROMPT, [0], -1, handle_issu_reload, 300),
         (ADMIN_RELOAD_PROMPT, [0], -1, handle_admin_reload, 300),
+        (ADMIN_OP_FAILED, [0], -1, handle_admin_op_failure, 300),
 
     ]
 
