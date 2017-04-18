@@ -1,0 +1,2 @@
+-e git+https://github.com/anushreejangid/condoor.git#egg=condoor
+-e git+https://github.com/anushreejangid/csmpe-main.git#egg=csmpe
