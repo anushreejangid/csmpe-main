@@ -1,0 +1,36 @@
+[
+	{
+		"TC" : "Run dhclient",
+		"shell" : "Bash",
+		"command" : [ "dhclient eth-mgmt" ]
+	},
+	{
+		"TC" : "Mount package path",
+		"shell" : "Bash",
+		"command" : [ "mkdir /aj", "sshfs root:roZes@1.75.55.1:/auto/efr-images/xr-dev/ncs5500/xr-dev_ncs5500_0344371_2017-04-17_05-25-16 /aj" ]
+	},
+    {
+       "TC" : "Add mini",
+       "shell" : "XR",
+       "operation" : "Add",
+       "repository_url" : "/aj/",
+       "packages" : [ "ncs5500-mini-x.iso" ],
+       "save_data" : { "operation_id" : "<id1>" }
+	  },
+	  {
+	  	"TC" : "Add v1 optional packages",
+	  	"shell" : "XR",
+	  	"operation" : "Add",
+	  	"repository_url" : "/aj/",
+	  	"packages" : [ "ncs5500-mgbl-3.0.0.0-r63115I.x86_64.rpm"],
+	  	"save_data" : { "operation_id" : "<id1>" },
+	  	"pattern" : { "pass": [ "Install operation .* successfully"] , "fail" : [ "Timeout", "abort"] }
+	  },
+	  {
+	  	"TC" : "Activate of packages",
+	  	"shell" : "XR",
+	  	"operation" : "Activate",
+	  	"pkg_id" : ["<id1>"],
+	  	"pattern" : { "pass": [ "Install operation .* successfully"] , "fail" : [ "Timeout", "abort"] }
+	  }
+]

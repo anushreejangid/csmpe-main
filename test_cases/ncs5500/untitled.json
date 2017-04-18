@@ -1,0 +1,10 @@
+[
+	  {
+	  	"TC" : "Prepare of packages",
+	  	"shell" : "XR",
+	  	"operation" : "Prepare",
+	  	"pkg_id" : ["<id1>"],
+	  	"pattern" : { "pass": [ "abort"] , "fail" : [ "Timeout"] },
+	  	"comment" : "prepare of invalid package"
+	  }
+]
