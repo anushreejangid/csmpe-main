@@ -1,0 +1,24 @@
+[
+    {
+       "TC" : "Add v1 optional packages ",
+       "shell" : "XR",
+       "operation" : "Add",
+       "repository_url" : "/harddisk:/",
+       "packages" : [ "v1_opt.tar" ],
+       "save_data" : { "operation_id" : "<id1>" }
+	  },
+	  {
+	  	"TC" : "Activate of packages",
+	  	"shell" : "XR",
+	  	"operation" : "Activate",
+	  	"pkg_id" : ["<id1>"],
+	  	"pattern" : { "pass": [ "abort"] , "fail" : [ "Timeout"] }
+	  },
+	  {
+	  	"TC" : "Deactivate of packages",
+	  	"shell" : "XR",
+	  	"operation" : "Deactivate",
+	  	"pkg_id" : ["<id1>"],
+	  	"pattern" : { "pass": [ "abort"] , "fail" : [ "Timeout"] }
+	  }
+]
