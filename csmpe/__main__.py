@@ -322,6 +322,7 @@ def jsonparser(config_file, admin_active_console, admin_standby_console,
                 elif tc.get("command"):
                     plugin_name = oper_plugin["Command"]
                     cmd  = tc.get("command")
+                    cmd_list = cmd
                     print("Plugin cmd {} with shell {} with plugin {}".format(cmd, ctx.shell, plugin_name))
                     if cmd:
                         if "Bash" in ctx.shell:
