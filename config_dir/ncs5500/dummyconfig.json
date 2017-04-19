@@ -1,0 +1,8 @@
+{
+	"admin_active_console": "",
+	"admin_standby_console" : "",
+	"xr_active_console"     : "telnet://username:password@ip:port",
+	"xr_standby_console"    : [ "telnet://username:password@ip:port"],
+	"log_dir"				: "./logs",
+	"tc_loc"                : "./venv-csmpe/src/csmpe/test_cases/ncs5500/try.json"
+}
