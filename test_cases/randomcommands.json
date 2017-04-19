@@ -1,12 +1,17 @@
 [
 	{
 		"TC" : "Run process restart",
-		"shell" : "Bash",
+		"shell" : "XR",
 		"command" : [ "process restart sdr_instagt" , "process restart sdr_instagt" ]
 	},
 	{
 		"TC" : "list contents of install_repo",
 		"shell" : "AdminBash",
 		"command" : [ "tree /install_repo/gl/calvados", "tree /install_repo/gl/xr"]
-	}
+	},
+	{
+	  	"TC" : "Reload location all",
+	  	"shell" : "XR",
+	  	"command" : [ "reload location 0/0/CPU0"]
+	  }
 ]

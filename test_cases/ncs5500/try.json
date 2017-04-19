@@ -3,7 +3,7 @@
 	  	"TC" : "Prepare of packages",
 	  	"shell" : "XR",
 	  	"operation" : "Prepare",
-	  	"pkg_id" : ["5555"],
+	  	"pkg_id" : [ "5555" ],
 	  	"pattern" : { "pass" : [ "Invalid add operation id: 5555" ]},
 	  	"comment" : "prepare of invalid package",
 	  	"nextlevel" : [
@@ -11,7 +11,7 @@
 	  					"TC" : "Check nothing should be prepared after this",
 	  					"shell" : "XR",
 	  				    "command" : [ "show install prepare" ],
-	  				    "pattern" : { "pass": [ "No prepar operation in effect"] }
+	  				    "pattern" : { "pass": [ "No prepare operation in effect"] }
 	  				}
 	  			]
 	  }
