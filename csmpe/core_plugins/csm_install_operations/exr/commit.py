@@ -62,6 +62,9 @@ class Plugin(CSMPlugin):
         RP/0/RP0/CPU0:Deploy#May 27 16:34:11 Install operation 32 finished successfully
         """
         cmd = "install commit"
+        if self.ctx.shell == "Admin":
+            self.ctx.info("Switching to admin mode")
+            self.ctx.send("admin", timeout=30)
         output = self.ctx.send(cmd)
         result = re.search('Install operation (\d+)', output)
         if result:
@@ -94,6 +97,10 @@ class Plugin(CSMPlugin):
         elif re.search(success_oper, output):
             self.ctx.info("Operation {} finished successfully.".format(op_id))
         report_install_status(self.ctx, op_id, output)
+        if self.ctx.shell == "Admin":
+            self.ctx.info("Switching to admin mode")
+            self.ctx.send("exit", timeout=30)
+        
         # Refresh package and inventory information
         #get_package(self.ctx)
         #get_inventory(self.ctx)

@@ -25,13 +25,13 @@
 # =============================================================================
 
 from csmpe.plugins import CSMPlugin
-from install import observe_install_remove_all
+from install import observe_install_add_remove
 from csmpe.core_plugins.csm_get_inventory.exr.plugin import get_package, get_inventory
 
 
 class Plugin(CSMPlugin):
     """This plugin removes inactive packages from the device."""
-    name = "Install Remove All Inactive Plugin"
+    name = "Install Remove Inactive All Plugin"
     platforms = {'ASR9K', 'NCS1K', 'NCS4K', 'NCS5K', 'NCS5500', 'NCS6K', 'IOS-XRv'}
     phases = {'Remove All Inactive'}
     os = {'eXR'}
@@ -42,11 +42,18 @@ class Plugin(CSMPlugin):
 
         self.ctx.info("Remove All Inactive Package(s) Pending")
         self.ctx.post_status("Remove All Inactive Package(s) Pending")
+        if self.ctx.shell == "Admin":
+            self.ctx.info("Switching to admin mode")
+            self.ctx.send("admin", timeout=30)
 
-        observe_install_remove_all(self.ctx, cmd, self.ctx.prompt)
-
+        output = self.ctx.send(cmd, timeout=600)
+        observe_install_add_remove(self.ctx, output)
+        
+        if self.ctx.shell == "Admin":
+            self.ctx.info("Switching to admin mode")
+            self.ctx.send("exit", timeout=30)
         self.ctx.info("Remove All Inactive Package(s) Successfully")
-
+        
         # Refresh package and inventory information
-        get_package(self.ctx)
-        get_inventory(self.ctx)
+        #get_package(self.ctx)
+        #get_inventory(self.ctx)

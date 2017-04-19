@@ -112,7 +112,6 @@ class Plugin(CSMPlugin):
         if self.ctx.shell == "Admin":
             self.ctx.info("Switching to admin mode")
             self.ctx.send("admin", timeout=30)
-        wait_for_prompt(self.ctx)
 
         if pkg_id:
             self.ctx.info("Package id{}done".format(pkg_id))
@@ -137,12 +136,13 @@ class Plugin(CSMPlugin):
         if self.ctx.shell == "Admin":
             self.ctx.info("exiting")
             self.ctx.send("exit", timeout=30)
-        self.ctx.info("Prepare package(s) done")
-        self.ctx.info("Refreshing package and inventory information")
-        self.ctx.post_status("Refreshing package and inventory information")
+        
+        #self.ctx.info("Prepare package(s) done")
+        #self.ctx.info("Refreshing package and inventory information")
+        #self.ctx.post_status("Refreshing package and inventory information")
         # Refresh package and inventory information
         #get_package(self.ctx)
         #get_inventory(self.ctx)
 
-        update_device_info_udi(self.ctx)
+        #update_device_info_udi(self.ctx)
 

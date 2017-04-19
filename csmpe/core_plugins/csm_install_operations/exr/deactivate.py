@@ -94,7 +94,6 @@ class Plugin(CSMPlugin):
         if self.ctx.shell == "Admin":
             self.ctx.info("Switching to admin mode")
             self.ctx.send("admin", timeout=30)
-        wait_for_prompt(self.ctx)
 
         if pkg_id is not None:
             cmd = 'install deactivate id {}'.format(pkg_id)
@@ -108,9 +107,11 @@ class Plugin(CSMPlugin):
         self.ctx.post_status("Deactivate Package(s) Pending")
         self.ctx.info("[DEBUG]CMD: {}".format(cmd))
         install_activate_deactivate(self.ctx, cmd)
-
+        if self.ctx.shell == "Admin":
+            self.ctx.info("Switching to admin mode")
+            self.ctx.send("exit", timeout=30)
         self.ctx.info("Deactivate package(s) done")
-
+        
         # Refresh package and inventory information
-        get_package(self.ctx)
-        get_inventory(self.ctx)
+        #get_package(self.ctx)
+        #get_inventory(self.ctx)

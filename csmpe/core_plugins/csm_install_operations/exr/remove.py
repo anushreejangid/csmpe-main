@@ -60,16 +60,18 @@ class Plugin(CSMPlugin):
 
         if self.ctx.shell == "Admin":
             self.ctx.send("admin", timeout=30)
-        wait_for_prompt(self.ctx)
 
         self.ctx.info("Remove Package(s) Pending")
         self.ctx.post_status("Remove Package(s) Pending")
 
         output = self.ctx.send(cmd, timeout=600)
         observe_install_add_remove(self.ctx, output)
-
+        
+        if self.ctx.shell == "Admin":
+            self.ctx.info("Switching to admin mode")
+            self.ctx.send("exit", timeout=30)
         self.ctx.info("Package(s) Removed Successfully")
-
+        
         # Refresh package and inventory information
-        get_package(self.ctx)
-        get_inventory(self.ctx)
+        #get_package(self.ctx)
+        #get_inventory(self.ctx)

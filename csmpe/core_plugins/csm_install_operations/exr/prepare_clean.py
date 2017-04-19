@@ -34,7 +34,7 @@ from csmpe.core_plugins.csm_get_inventory.exr.plugin import get_package, get_inv
 
 class Plugin(CSMPlugin):
     """This plugin commits packages on the device."""
-    name = "Install Commit Plugin"
+    name = "Install Prepare Clean Plugin"
     platforms = {'ASR9K', 'NCS1K', 'NCS4K', 'NCS5K', 'NCS5500', 'NCS6K', 'IOS-XRv'}
     phases = {'Pre-Activate'}
     os = {'eXR'}
@@ -50,6 +50,10 @@ class Plugin(CSMPlugin):
         RP/0/RP0/CPU0:Deploy#May 27 16:34:11 Install operation 32 finished successfully
         """
         cmd = "install prepare clean"
+        if self.ctx.shell == "Admin":
+            self.ctx.info("Switching to admin mode")
+            self.ctx.send("admin", timeout=30)
+
         output = self.ctx.send(cmd)
         result = re.search('Install operation (\d+)', output)
         if result:
@@ -79,7 +83,12 @@ class Plugin(CSMPlugin):
             self.ctx.info("Completed with failure")
         elif re.search(success_oper, output):
             self.ctx.info("Operation {} finished successfully.".format(op_id))
+
         report_install_status(self.ctx, op_id, output)
+        if self.ctx.shell == "Admin":
+            self.ctx.info("Switching to admin mode")
+            self.ctx.send("exit", timeout=30)
+        
         # Refresh package and inventory information
-        get_package(self.ctx)
-        get_inventory(self.ctx)
+        #get_package(self.ctx)
+        #get_inventory(self.ctx)

@@ -113,7 +113,6 @@ class Plugin(CSMPlugin):
         if self.ctx.shell == "Admin":
             self.ctx.info("Switching to admin mode")
             self.ctx.send("admin", timeout=30)
-        wait_for_prompt(self.ctx)
 
         if pkg_id:
             if self.ctx.issu_mode:
@@ -135,7 +134,10 @@ class Plugin(CSMPlugin):
         self.ctx.info("[DEBUG]CMD: {}".format(cmd))
 
         install_activate_deactivate(self.ctx, cmd)
-
+        if self.ctx.shell == "Admin":
+            self.ctx.info("Switching to admin mode")
+            self.ctx.send("exit", timeout=30)
+            
         self.ctx.info("Activate package(s) done")
         self.ctx.info("Refreshing package and inventory information")
         self.ctx.post_status("Refreshing package and inventory information")

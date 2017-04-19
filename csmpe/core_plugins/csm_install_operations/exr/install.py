@@ -168,13 +168,13 @@ def validate_node_state(inventory):
         'IOS XR RUN',
         'PRESENT',
         'READY',
-        'FAILED',
+        #'FAILED',
         'OK',
         'DISABLED',
         'UNPOWERED',
         'POWERED_OFF',
-        'SW_INACTIVE',
-        'ADMIN DOWN',
+        #'SW_INACTIVE',
+        #'ADMIN DOWN',
         'OPERATIONAL',
         'NOT ALLOW ONLIN',  # This is not spelling error
     ]

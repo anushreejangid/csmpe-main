@@ -118,9 +118,7 @@ class Plugin(CSMPlugin):
         if self.ctx.shell == "Admin":
             self.ctx.info("Switching to admin mode")
             self.ctx.send("admin", timeout=30)
-
-        wait_for_prompt(self.ctx)
-
+            
         self.ctx.info("Add Package(s) Pending")
         self.ctx.post_status("Add Package(s) Pending")
 
@@ -129,11 +127,11 @@ class Plugin(CSMPlugin):
         self.ctx.info("Package(s) Added Successfully")
 
         # Refresh package and inventory information
-        get_package(self.ctx)
-        get_inventory(self.ctx)
+        #get_package(self.ctx)
+        #get_inventory(self.ctx)
         process_save_data(self.ctx)
         if self.ctx.shell == "Admin":
             self.ctx.info("Exiting from admin mode")
             self.ctx.send("exit", timeout=30)
-        self.ctx.send("exit", timeout=30)
+        
 

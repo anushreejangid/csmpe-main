@@ -214,8 +214,8 @@ def jsonparser(config_file, admin_active_console, admin_standby_console,
     oper_plugin = {
                   "Add" : "Install Add Plugin",
                   "Remove" : "Install Remove Plugin",
-                  "Remove All" : "Install RemoveAll Plugin",
-                  "Remove Inactive" : "Install RemoveInactive Plugin",
+                  "Remove Inactive" : "Install Remove Inactive Plugin",
+                  "Remove Inactive All" : "Install Remove Inactive All Plugin",
                   "Activate" : "Install Activate Plugin",
                   "Deactivate" : "Install Deactivate Plugin",
                   "Commit" : "Install Commit Plugin",
@@ -225,7 +225,7 @@ def jsonparser(config_file, admin_active_console, admin_standby_console,
                   "Command" : "Custom Commands Capture Plugin",
                   "Prepare" : "Install Prepare Plugin",
                   "Flow1" : "Install FirexFlow1 Plugin",
-                  "Prepare Clean" : "Install Clean Plugin"
+                  "Prepare Clean" : "Install Prepare Clean Plugin"
                   }
     tc_list = []
     config = {}
@@ -371,7 +371,9 @@ def jsonparser(config_file, admin_active_console, admin_standby_console,
             print("\n Plugin execution finished.\n")
             print("Log files dir: {}".format(log_dir))
             print("Results: {}".format(" ".join(map(str, results))))
-                
+            print("Debug: Sleeping")
+            time.sleep(20)    
+            print("Debug: Woke up")
 
 if __name__ == '__main__':
     cli()
