@@ -378,17 +378,18 @@ def report_install_status(ctx, op_id=None, output=None):
         pass
     if op_id:
         failed_oper = r'aborted|failed'.format(op_id)
-        output = ctx.send("show install log {} detail".format(op_id))
-        status, message = match_pattern(ctx.pattern, output)
+        out = ctx.send("show install log {} detail".format(op_id))
+        ctx.info("DEBUG: Output {}".format(out))
+        status, message = match_pattern(ctx.pattern, out)
         report_log(ctx, status, message)
-        if re.search(failed_oper, output):
-            log_install_errors(ctx, output)
-            if not status:
-                ctx.error("Operation {} failed".format(op_id))
-            else:
+        log_install_errors(ctx, out)
+        if not status:
+            ctx.error("Operation {} failed".format(op_id))
+        else:
+            if re.search(failed_oper, output):
                 ctx.post_status("Operation {} failed".format(op_id))
-
-        ctx.post_status("Operation {} finished successfully".format(op_id))
+            else:
+                ctx.post_status("Operation {} finished successfully".format(op_id))
     else:
         status, message = match_pattern(ctx.pattern, output)
         report_log(ctx, status, message)
@@ -398,7 +399,7 @@ def report_install_status(ctx, op_id=None, output=None):
         else:
             ctx.post_status("Operation failed with no op-id")
     return status
-
+  
 
 def handle_aborted(fsm_ctx):
     """
@@ -538,10 +539,15 @@ def handle_admin_reload(fsm_ctx):
     return status and False
 
 def no_impact_warning(fsm_ctx):
-    plugin_ctx.warning("This was a NO IMPACT OPERATION. Packages are already active on device.")
+    global plugin_ctx
+    plugin_ctx.warning("This was a NO IMPACT OPERATION. Packages are already active/inactive on device.")
+    plugin_ctx.info("after {}".format(fsm_ctx.ctrl.after))
+    plugin_ctx.info("before {}".format(fsm_ctx.ctrl.before))
+    op_id = get_op_id(fsm_ctx.ctrl.before)
+    plugin_ctx.info("Op id: {}".format(op_id))
     if plugin_ctx.nextlevel:
         nextlevel_processing(plugin_ctx)
-    return True
+    report_install_status(plugin_ctx, op_id, fsm_ctx.ctrl.after)
 
 
 def handle_not_start(fsm_ctx):
