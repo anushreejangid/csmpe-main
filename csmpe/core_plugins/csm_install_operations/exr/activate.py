@@ -127,8 +127,7 @@ class Plugin(CSMPlugin):
         elif self.ctx.issu_mode:
             cmd = 'install activate issu'
         else:
-            self.ctx.error("Unable to form xr command for activate")
-            return
+            cmd = 'install activate'
         self.ctx.info("Activate package(s) pending")
         self.ctx.post_status("Activate Package(s) Pending")
         self.ctx.info("[DEBUG]CMD: {}".format(cmd))
