@@ -371,9 +371,9 @@ def jsonparser(config_file, admin_active_console, admin_standby_console,
             print("\n Plugin execution finished.\n")
             print("Log files dir: {}".format(log_dir))
             print("Results: {}".format(" ".join(map(str, results))))
-            print("Debug: Sleeping")
-            time.sleep(20)    
-            print("Debug: Woke up")
+            print("Debug: Waiting to execute next plugin")
+            time.sleep(15)    
+            print("Debug: Finished waiting")
 
 if __name__ == '__main__':
     cli()

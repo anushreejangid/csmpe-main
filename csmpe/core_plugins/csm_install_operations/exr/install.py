@@ -160,7 +160,7 @@ def watch_operation(ctx, op_id=0):
         if no_install in output:
             break
 
-    report_install_status(ctx, op_id)
+    #report_install_status(ctx, op_id)
 
 
 def validate_node_state(inventory):
@@ -459,7 +459,7 @@ def handle_reload_activate_deactivate(fsm_ctx):
     if not success:
         plugin_ctx.error("Reload or boot failure")
         return
-
+    report_install_status(plugin_ctx, op_id)
     plugin_ctx.info("Operation {} finished successfully".format(op_id))
 
     return True

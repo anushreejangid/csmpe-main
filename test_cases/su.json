@@ -12,7 +12,7 @@
 	  	"shell" : "XR",
 	  	"operation" : "Activate",
 	  	"pkg_id" : ["<id1>"],
-	  	"pattern" : { "pass": [ "abort"] , "fail" : [ "Timeout"] }
+	  	"pattern" : { "pass": [ "success"] , "fail" : [ "Timeout"] }
 	  },
 	  {
 	  	"TC" : "Deactivate of packages",

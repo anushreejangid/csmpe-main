@@ -10,6 +10,13 @@
        "_comment" : "This flow is valid for system booted with full iso"
 	  },
 	  {
+	  	"TC" : "Activate packages",
+	  	"shell" : "XR",
+	  	"operation" : "Activate",
+	  	"pkg_id" : [ "<id1>" ],
+	  	"pattern" : { "pass": [ "NO IMPACT", "Install operation *.* successful*.*" ] , "fail" : [ "Timeout", "abort", "failed"] }
+	  },
+	  {
 	  	"TC" : "Prepare packages",
 	  	"shell" : "XR",
 	  	"operation" : "Prepare",
@@ -39,14 +46,14 @@
 	  	"TC" : "Activate packages",
 	  	"shell" : "XR",
 	  	"operation" : "Activate",
-	  	"pkg_id" : [ "<id1>"],
+	  	"pkg_id" : [ "<id1>" ],
 	  	"pattern" : { "pass": [ "NO IMPACT", "Install operation *.* successful*.*" ] , "fail" : [ "Timeout", "abort", "failed"] }
 	  },
 	  {
 	  	"TC" : "Deactivate packages",
 	  	"shell" : "XR",
 	  	"operation" : "Deactivate",
-	  	"pkg_id" : [ "<id1>"],
+	  	"pkg_id" : [ "<id1>" ],
 	  	"pattern" : { "pass": [ "Install operation *.* successful*.*" ] , "fail" : [ "Timeout", "abort", "failed"] }
 	  },
 	  {
