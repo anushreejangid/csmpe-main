@@ -377,12 +377,12 @@ def report_install_status(ctx, op_id=None, output=None):
     except:
         pass
     if op_id:
-        failed_oper = r'aborted|failed'.format(op_id)
-        out = ctx.send("show install log {} detail".format(op_id))
-        ctx.info("DEBUG: Output {}".format(out))
-        status, message = match_pattern(ctx.pattern, out)
+        failed_oper = r'failed|aborted|error'
+        output = ctx.send("show install log {} detail".format(op_id))
+        ctx.info("DEBUG: Output {}".format(output))
+        status, message = match_pattern(ctx.pattern, output)
         report_log(ctx, status, message)
-        log_install_errors(ctx, out)
+        log_install_errors(ctx, output)
         if not status:
             ctx.error("Operation {} failed".format(op_id))
         else:
@@ -548,6 +548,7 @@ def no_impact_warning(fsm_ctx):
     if plugin_ctx.nextlevel:
         nextlevel_processing(plugin_ctx)
     report_install_status(plugin_ctx, op_id, fsm_ctx.ctrl.after)
+    return True
 
 
 def handle_not_start(fsm_ctx):
@@ -573,6 +574,7 @@ def handle_op_after_su(fsm_ctx):
     if plugin_ctx.nextlevel:
         nextlevel_processing(plugin_ctx)
     report_install_status(plugin_ctx, output=fsm_ctx.ctrl.after)
+    return True
 
 def handle_admin_op_failure(fsm_ctx):
     global plugin_ctx
@@ -581,6 +583,7 @@ def handle_admin_op_failure(fsm_ctx):
     if plugin_ctx.nextlevel:
         nextlevel_processing(plugin_ctx)
     report_install_status(plugin_ctx, output=fsm_ctx.ctrl.after)
+    return True
 
 def install_activate_deactivate(ctx, cmd):
     """
