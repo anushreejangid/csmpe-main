@@ -100,8 +100,8 @@ class Plugin(CSMPlugin):
         """
         Performs install prepare operation
         """
-        check_ncs6k_release(self.ctx)
-        check_ncs4k_release(self.ctx)
+        #check_ncs6k_release(self.ctx)
+        #check_ncs4k_release(self.ctx)
         self.ctx.post_status("Executing Install Prepare Plugin")
         packages = " ".join(self.ctx.software_packages)
         pkg_id = []

@@ -723,7 +723,7 @@ def match_pattern(pattern, output):
             result_list = regex.findall(output)
             result_fail = "^|^".join(result_list)
         if result_pass and not result_fail:
-            return True, "Pattern {} matched in {}..!!!".format(result_pass, output)
+            return True, "Pattern {} matched in {}..!!!".format(pattern, output)
         else:
             return False, "Pattern {} not matched in {}!!!\n".format(pattern, output)
     else:
