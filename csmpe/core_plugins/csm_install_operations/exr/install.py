@@ -393,7 +393,7 @@ def report_install_status(ctx, op_id=None, output=None):
         report_log(ctx, status, message)
         log_install_errors(ctx, output)
         if not status:
-            ctx.error("Operation {} failed".format(op_id))
+            ctx.error("Operation {} failed with status {}".format(op_id, status))
         else:
             if re.search(failed_oper, output):
                 ctx.post_status("Operation {} failed".format(op_id))
@@ -421,7 +421,7 @@ def handle_aborted(fsm_ctx):
     report_install_status(ctx=plugin_ctx, op_id=get_op_id(fsm_ctx.ctrl.before))
 
     # Indicates the failure
-    return False
+    return True
 
 
 def handle_non_reload_activate_deactivate(fsm_ctx):
