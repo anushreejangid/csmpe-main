@@ -895,13 +895,13 @@ def nextlevel_processing(ctx):
                 cmd_list = cmd
             ctx.post_status("Commands {}".format(cmd_list))
             if shell == "AdminBash":
-                self.ctx.send("admin", timeout=100)
+                ctx.send("admin", timeout=100)
 
             for cmd in cmd_list:
                 cmd_out = ctx.send(cmd, timeout=200)
 
             if shell == "AdminBash":
-                self.ctx.send("exit", timeout=100)
+                ctx.send("exit", timeout=100)
 
             if pattern:
                 status, message = match_pattern(pattern, cmd_out)
