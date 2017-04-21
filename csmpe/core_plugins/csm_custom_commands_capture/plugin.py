@@ -53,6 +53,8 @@ class Plugin(CSMPlugin):
                     if self.ctx.pattern:
                         status, message = match_pattern(self.ctx.pattern, output) 
                         report_log(self.ctx, status, message)
+                    else:
+                        report_log(self.ctx, True, "Pattern unspecified. Proceeding...")
                     file_name = self.ctx.save_to_file(cmd, output)
 
                     if file_name is None:

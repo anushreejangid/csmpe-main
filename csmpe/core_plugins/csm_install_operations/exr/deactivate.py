@@ -82,8 +82,8 @@ class Plugin(CSMPlugin):
         May 27 16:39:31     ncs6k-5.2.5.CSCuz65240-1.0.0
         May 27 16:39:36 Install operation will continue in the background
         """
-        check_ncs6k_release(self.ctx)
-        check_ncs4k_release(self.ctx)
+        #check_ncs6k_release(self.ctx)
+        #check_ncs4k_release(self.ctx)
 
         packages = " ".join(self.ctx.software_packages)
         pkg_id = None
