@@ -325,9 +325,9 @@ def observe_install_add_remove(ctx, output, has_tar=False):
         nextlevel_processing(ctx)
     if op_success in output:
         watch_operation(ctx, op_id)
-        report_install_status(ctx, ctx.operation_id)
     else:
         log_install_errors(ctx, output)
+    report_install_status(ctx, ctx.operation_id)
         #ctx.error("Operation {} failed".format(op_id))
 
 def get_sysadmin_op_id(output):
