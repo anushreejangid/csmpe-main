@@ -101,8 +101,8 @@ class Plugin(CSMPlugin):
         observe_install_add_remove(self.ctx, output, has_tar=has_tar)
 
     def run(self):
-        check_ncs6k_release(self.ctx)
-        check_ncs4k_release(self.ctx)
+        #check_ncs6k_release(self.ctx)
+        #check_ncs4k_release(self.ctx)
         self.ctx.post_status("Install Add Plugin")
         server_repository_url = self.ctx.server_repository_url
         if server_repository_url is None:

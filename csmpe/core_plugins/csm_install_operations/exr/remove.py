@@ -51,7 +51,8 @@ class Plugin(CSMPlugin):
 
     def run(self):
         self.ctx.post_status("Install Remove Plugin")
-        if hasattr(self.ctx, 'pkg_id'):
+        pkg_id = []
+        if self.ctx.pkg_id:
             pkg_id = " ".join(self.ctx.pkg_id)
             cmd = self.remove_id(pkg_id)
         else:

@@ -321,7 +321,8 @@ def observe_install_add_remove(ctx, output, has_tar=False):
         return  # for sake of clarity
 
     op_success = "Install operation will continue in the background"
-
+    if ctx.nextlevel:
+        nextlevel_processing(ctx)
     if op_success in output:
         watch_operation(ctx, op_id)
     else:
