@@ -317,13 +317,17 @@ def observe_install_add_remove(ctx, output, has_tar=False):
         if has_tar is True:
             ctx.info("The operation {} stored".format(op_id))
     else:
-        report_install_status(ctx, output=output)
+        if ctx.shell == "Admin":
+            op_id = get_sysadmin_op_id(output)
+        if op_id == -1:
+            report_install_status(ctx, output=output)
         return  # for sake of clarity
-
+    ctx.operation_id = op_id
     op_success = "Install operation will continue in the background"
+    ctx.info("Operation id is {}".format(ctx.operation_id))
     if ctx.nextlevel:
         nextlevel_processing(ctx)
-    if op_success in output:
+    if ctx.operation_id:
         watch_operation(ctx, op_id)
     else:
         log_install_errors(ctx, output)
@@ -335,6 +339,10 @@ def get_sysadmin_op_id(output):
     result = re.search('Op Id (\d+)', output)
     if result:
         return result.group(1)
+    else:
+        result = re.search('nstall operation (\d+)', output)
+        if result:
+            return result.group(1)
 
 def get_op_id(output):
     """
