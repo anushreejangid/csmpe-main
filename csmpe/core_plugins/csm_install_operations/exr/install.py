@@ -325,8 +325,8 @@ def observe_install_add_remove(ctx, output, has_tar=False):
         nextlevel_processing(ctx)
     if op_success in output:
         watch_operation(ctx, op_id)
-    else:
         report_install_status(ctx, ctx.operation_id)
+    else:
         log_install_errors(ctx, output)
         #ctx.error("Operation {} failed".format(op_id))
 
