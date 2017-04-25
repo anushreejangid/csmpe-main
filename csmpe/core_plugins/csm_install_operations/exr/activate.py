@@ -131,7 +131,6 @@ class Plugin(CSMPlugin):
         self.ctx.info("Activate package(s) pending")
         self.ctx.post_status("Activate Package(s) Pending")
         self.ctx.info("[DEBUG]CMD: {}".format(cmd))
-
         install_activate_deactivate(self.ctx, cmd)
         if self.ctx.shell == "Admin":
             self.ctx.info("Switching to admin mode")

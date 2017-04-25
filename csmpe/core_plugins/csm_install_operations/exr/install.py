@@ -367,8 +367,8 @@ def report_log(ctx, status, message="No output to match pattern"):
     with open(result_file, 'r') as fd_log:
       data = json.load(fd_log)
     tc_id = ctx.tc_id - 1
-    data[tc_id]['status'] = 'Pass' if status else 'Fail'
-    data[tc_id]['message'] = message
+    data['tcs'][tc_id]['status'] = 'Passed' if status else 'Failed'
+    data['tcs'][tc_id]['message'] = message
     with open(result_file, 'w') as fd_log:
         fd_log.write(json.dumps(data, indent=4))
     ctx.post_status("tc_id: {}, TC: {} :: {}".format(ctx.tc_id, ctx.tc_name, message))

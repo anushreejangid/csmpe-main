@@ -95,9 +95,9 @@ class Plugin(CSMPlugin):
             self.ctx.info("Switching to admin mode")
             self.ctx.send("admin", timeout=30)
 
-        if pkg_id is not None:
+        if pkg_id:
             cmd = 'install deactivate id {}'.format(pkg_id)
-        elif packages is not None:
+        elif packages:
             cmd = 'install deactivate {}'.format(packages)
         else:
             self.ctx.error("Unable to form xr command for deactivate")

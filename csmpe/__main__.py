@@ -41,6 +41,9 @@ import json
 import pprint
 import time
 import shutil
+import getpass
+import datetime
+from junit_xml import TestSuite, TestCase
 from csmpe.context import InstallContext
 from csmpe.csm_pm import CSMPluginManager
 from csmpe.csm_pm import install_phases
@@ -262,10 +265,12 @@ def jsonparser(config_file, admin_active_console, admin_standby_console,
         raise IOError("Error! No testcase found to run in {}".format(config['tc_loc']))
 
     log_parent_dir = os.path.join(config['log_dir'], time.strftime("csm-%Y%m%d%H%M%S"))
+    log_dir_path_list = []
     for tc_file_org in tc_list:
         print("TC file : {}".format(tc_file_org))
         log_subdir = os.path.splitext(os.path.basename(tc_file_org))[0]
         log_dir = os.path.join(log_parent_dir, log_subdir)
+        log_dir_path_list.append(log_dir)
         tc_file = os.path.join(log_dir, 'tc.json') 
         os.makedirs(log_dir)
         shutil.copyfile(tc_file_org, tc_file)
@@ -275,7 +280,11 @@ def jsonparser(config_file, admin_active_console, admin_standby_console,
             except:
                 click.echo("ERROR! Json file {} failed to parse".format(tc_file_org))
                 continue
-        result_data = []
+        result_data = {}
+        result_data['submitter'] = getpass.getuser()
+        result_data['start_time'] = datetime.datetime.now().strftime("%Y-%m-%dT%H:%M:%S")
+        result_data['test_suite'] = tc_file_org
+        result_data['tcs'] = []
         for idx, tc in enumerate(data, 1):
             result_i = {
                 "tc_id" : idx,
@@ -283,7 +292,7 @@ def jsonparser(config_file, admin_active_console, admin_standby_console,
                 "status": "Blocked",
                 "TC": tc["TC"]
             }
-            result_data.append(result_i)
+            result_data['tcs'].append(result_i)
         result_file = os.path.join(log_dir, 'result.log')
         with open(result_file, 'w') as fd_log:
             fd_log.write(json.dumps(result_data, indent=4))
@@ -359,21 +368,66 @@ def jsonparser(config_file, admin_active_console, admin_standby_console,
             print("CTX: {}".format(json.dumps(ctx.__dict__, indent=4)))
             pm = CSMPluginManager(ctx)
             pm.set_name_filter(plugin_name)
-            results = pm.dispatch("run")
-            
-            #Retain session.log as they get deleted after each plugin execution
-            session_filename = os.path.join(log_dir, "session.log")
-            session_filename_main = os.path.join(log_dir, "session_main.log")
-            with open(session_filename) as sf:
-                with open(session_filename_main,"a+")as sfm:
-                    for line in sf:
-                        sfm.write(line)             
-            print("\n Plugin execution finished.\n")
-            print("Log files dir: {}".format(log_dir))
-            print("Results: {}".format(" ".join(map(str, results))))
-            print("Debug: Waiting to execute next plugin")
-            time.sleep(15)    
-            print("Debug: Finished waiting")
+            try:
+                results = []
+                results = pm.dispatch("run")
+            except Exception as e:
+                print("Exception occurred!!! {}".format(e))
+                break;    
+            finally:       
+                #Retain session.log as they get deleted after each plugin execution
+                session_filename = os.path.join(log_dir, "session.log")
+                session_filename_main = os.path.join(log_dir, "session_main.log")
+                with open(session_filename) as sf:
+                    with open(session_filename_main,"a+")as sfm:
+                        for line in sf:
+                            sfm.write(line)             
+                print("\n Plugin execution finished.\n")
+                print("Log files dir: {}".format(log_dir))
+                print("Results: {}".format(" ".join(map(str, results))))
+                print("Debug: Waiting to execute next plugin")
+                time.sleep(5)    
+                print("Debug: Finished waiting")
+
+                result_json = os.path.join(log_dir, "result.log")
+                with open(result_json) as fd:
+                    result = json.load(fd)
+                result['stop_time'] = datetime.datetime.now().strftime("%Y-%m-%dT%H:%M:%S")
+                with open(result_file, 'w') as fd_log:
+                    fd_log.write(json.dumps(result, indent=4))
+    print("{}".format(log_dir_path_list))
+    convert_result_to_xunit_xml(log_dir_path_list)
+
+def convert_result_to_xunit_xml(log_dir_path_list):
+    ts_list = []
+    for log_dir in log_dir_path_list:
+        result_json = os.path.join(log_dir, "result.log")
+        with open(result_json) as fd:
+            result = json.load(fd)
+
+        tcs_junit = []
+
+        for tc in result['tcs']:
+            status = tc['status']
+            testcase = TestCase(name=tc["TC"], classname=tc['tc_id'])
+            if status == 'Passed':
+                testcase.stdout = tc['message']
+            if status == 'Failed':
+                testcase.add_failure_info(message=tc['status'], output=tc['message']) 
+            elif status == 'Blocked':
+                testcase.add_skipped_info(message=tc['status'], output=tc['message']) 
+            elif status == 'Unknown' or status == 'Error':
+                testcase.add_error_info(message=tc['status'], output=tc['message']) 
+            tcs_junit.append(testcase)
+
+        ts = TestSuite(name=result['test_suite'], test_cases=tcs_junit, timestamp=datetime.datetime.now().strftime("%Y-%m-%dT%H:%M:%S"),
+                         properties={ 'submitter': result['submitter'], 'stop_time': result['stop_time']})
+
+        #print(TestSuite.to_xml_string([ts]))
+        ts_list.append(ts)
+
+    with open('result.xml', 'w') as f:
+        TestSuite.to_file(f, ts_list, prettyprint=True)
 
 if __name__ == '__main__':
     cli()
