@@ -33,6 +33,7 @@ from install import send_admin_cmd
 from install import check_ncs6k_release, check_ncs4k_release
 from csmpe.core_plugins.csm_get_inventory.exr.plugin import get_package, get_inventory
 from csmpe.core_plugins.csm_install_operations.utils import update_device_info_udi
+from install import process_save_data
 
 
 class Plugin(CSMPlugin):
@@ -133,6 +134,7 @@ class Plugin(CSMPlugin):
         self.ctx.info("[DEBUG]CMD: {}".format(cmd))
 
         install_activate_deactivate(self.ctx, cmd)
+        process_save_data(self.ctx)
         if self.ctx.shell == "Admin":
             self.ctx.info("exiting")
             self.ctx.send("exit", timeout=30)

@@ -268,7 +268,7 @@ def wait_for_reload(ctx):
             pass    
         output = ctx.send(cmd, wait_for_string=pattern_to_match , timeout=600)
         if xr_run in output:
-            inventory = parse_show_platform(output)
+            inventory = parse_show_platform(ctx, output)
             if validate_node_state(inventory):
                 ctx.info("All nodes in desired state")
                 elapsed = time.time() - begin
@@ -321,6 +321,9 @@ def observe_install_add_remove(ctx, output, has_tar=False):
             op_id = get_sysadmin_op_id(output)
         if op_id == -1:
             report_install_status(ctx, output=output)
+            if self.ctx.shell == "Admin":
+                self.ctx.info("Switching to admin mode")
+                self.ctx.send("exit", timeout=30)           
         return  # for sake of clarity
     ctx.operation_id = op_id
     op_success = "Install operation will continue in the background"
@@ -332,7 +335,7 @@ def observe_install_add_remove(ctx, output, has_tar=False):
     else:
         log_install_errors(ctx, output)
     report_install_status(ctx, ctx.operation_id)
-        #ctx.error("Operation {} failed".format(op_id))
+    #ctx.error("Operation {} failed".format(op_id))
 
 def get_sysadmin_op_id(output):
     global plugin_ctx
@@ -386,6 +389,7 @@ def report_install_status(ctx, op_id=None, output=None):
     except:
         pass
     if op_id:
+        ctx.operation_id = op_id
         failed_oper = r'failed|aborted|error'
         output = ctx.send("show install log {} detail".format(op_id))
         ctx.info("DEBUG: Output {}".format(output))
@@ -538,7 +542,7 @@ def handle_admin_reload(fsm_ctx):
     cmd = "show platform"
     output = plugin_ctx.send(cmd, wait_for_string=pattern_to_match , timeout=600)
     if xr_run in output:
-        inventory = parse_show_platform(output)
+        inventory = parse_show_platform(ctx, output)
         if validate_node_state(inventory):
             plugin_ctx.info("All nodes in desired state")
             elapsed = time.time() - begin
@@ -866,6 +870,7 @@ def wait_for_prompt(ctx):
 
 def process_save_data(ctx):
     ctx.info("Processing data to save")
+    save_package_names(ctx)
     tc_id = ctx.tc_id - 1
     log_dir = ctx.log_directory
     tc_file = os.path.join(log_dir, 'tc.json')
@@ -883,6 +888,7 @@ def process_save_data(ctx):
         to_save_value = getattr(ctx, to_save)
         ctx.info("Replace {} with value {}".format(to_replace , to_save_value))
         updated_content = tc_file_content.replace(to_replace, to_save_value)
+        tc_file_content = updated_content
 
     ctx.info("Writing {}".format(updated_content))
 
@@ -918,6 +924,25 @@ def nextlevel_processing(ctx):
                     ctx.error("Pattern: {} not matched in Output: {}".format(pattern, cmd_out))
     else:
         ctx.info("No next level processing required")
+
+def save_package_names(ctx):
+    if hasattr(ctx , 'operation_id'):
+        if ctx.shell == "Admin":
+            ctx.info("Switching to admin mode")
+            ctx.send("admin", timeout=30)
+        log_out = ctx.send("show install log {}".format(ctx.operation_id))
+        
+        p = re.compile(r"Package(.*)Action", re.MULTILINE|re.DOTALL)
+        if p.search(log_out):
+            ctx.on_box_pkg_names = " ".join([ i.strip().rpartition('  ')[2].strip() for i in p.search(log_out).group().split('\n')[1:-1]])
+            ctx.post_status("Package list {}".format(ctx.on_box_pkg_names))
+            ctx.info("Log output: {}".format(log_out))
+        else:
+            ctx.info("Log output: {}".format(log_out))
+        if ctx.shell == "Admin":
+            ctx.info("Exiting from admin mode")
+            ctx.send("exit", timeout=30)
+
 
 
 

@@ -283,7 +283,7 @@ def jsonparser(config_file, admin_active_console, admin_standby_console,
         result_data = {}
         result_data['submitter'] = getpass.getuser()
         result_data['start_time'] = datetime.datetime.now().strftime("%Y-%m-%dT%H:%M:%S")
-        result_data['test_suite'] = tc_file_org
+        result_data['test_suite'] = os.path.splitext("path_to_file")[0]
         result_data['tcs'] = []
         for idx, tc in enumerate(data, 1):
             result_i = {
@@ -365,7 +365,7 @@ def jsonparser(config_file, admin_active_console, admin_standby_console,
             ctx.op_id = tc.get("resid",0)
             ctx.issu_mode = tc.get("mode", None)
             ctx.pkg_id = tc.get("pkg_id",[])
-            print("CTX: {}".format(json.dumps(ctx.__dict__, indent=4)))
+            #print("CTX: {}".format(json.dumps(ctx.__dict__, indent=4)))
             pm = CSMPluginManager(ctx)
             pm.set_name_filter(plugin_name)
             try:

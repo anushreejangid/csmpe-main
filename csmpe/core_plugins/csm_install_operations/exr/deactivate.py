@@ -30,6 +30,7 @@ from install import install_activate_deactivate
 from install import wait_for_prompt
 from install import send_admin_cmd
 from install import check_ncs6k_release, check_ncs4k_release
+from install import process_save_data
 from csmpe.core_plugins.csm_get_inventory.exr.plugin import get_package, get_inventory
 
 
@@ -107,6 +108,7 @@ class Plugin(CSMPlugin):
         self.ctx.post_status("Deactivate Package(s) Pending")
         self.ctx.info("[DEBUG]CMD: {}".format(cmd))
         install_activate_deactivate(self.ctx, cmd)
+        process_save_data(self.ctx)
         if self.ctx.shell == "Admin":
             self.ctx.info("Switching to admin mode")
             self.ctx.send("exit", timeout=30)

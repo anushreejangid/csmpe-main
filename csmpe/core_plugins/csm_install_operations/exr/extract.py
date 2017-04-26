@@ -28,6 +28,7 @@ from csmpe.plugins import CSMPlugin
 from install import check_ncs6k_release
 from install import install_activate_deactivate
 from install import wait_for_prompt
+from install import process_save_data
 
 class Plugin(CSMPlugin):
     """This plugin tests basic install operations on ios prompt."""
@@ -40,6 +41,7 @@ class Plugin(CSMPlugin):
     def extract(self, pkg_list):
         cmd = "install extract  {} ".format(pkg_list)
         install_activate_deactivate(self.ctx, cmd)
+        process_save_data(self.ctx)
         #generic_show(self.ctx)
 
     def run(self):

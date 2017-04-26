@@ -71,6 +71,9 @@ class Plugin(CSMPlugin):
             watch_operation(self.ctx, op_id)
         else:
             report_install_status(self.ctx, output=output)
+            if self.ctx.shell == "Admin":
+                self.ctx.info("Switching to admin mode")
+                self.ctx.send("exit", timeout=30)
             #self.ctx.error("Operation ID not found.")
             return
         #serialized = jsonpickle.encode(self.ctx.__dict__)
@@ -88,6 +91,9 @@ class Plugin(CSMPlugin):
 
         if re.search(failed_oper, output) or re.search(aborted_oper, output):
             report_install_status(self.ctx, op_id, output)
+            if self.ctx.shell == "Admin":
+                self.ctx.info("Switching to admin mode")
+                self.ctx.send("exit", timeout=30)
             #self.ctx.error("Install operation failed.")
             return
 

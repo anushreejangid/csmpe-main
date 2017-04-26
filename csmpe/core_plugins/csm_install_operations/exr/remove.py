@@ -30,6 +30,7 @@ from install import wait_for_prompt
 from install import observe_install_add_remove
 from install import send_admin_cmd
 from csmpe.core_plugins.csm_get_inventory.exr.plugin import get_package, get_inventory
+from install import process_save_data
 
 
 class Plugin(CSMPlugin):
@@ -67,7 +68,7 @@ class Plugin(CSMPlugin):
 
         output = self.ctx.send(cmd, timeout=600)
         observe_install_add_remove(self.ctx, output)
-        
+        process_save_data(self.ctx)
         if self.ctx.shell == "Admin":
             self.ctx.info("Switching to admin mode")
             self.ctx.send("exit", timeout=30)

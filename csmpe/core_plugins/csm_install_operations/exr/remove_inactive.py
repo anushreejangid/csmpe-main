@@ -27,7 +27,7 @@
 from csmpe.plugins import CSMPlugin
 from install import observe_install_add_remove
 from csmpe.core_plugins.csm_get_inventory.exr.plugin import get_package, get_inventory
-
+from install import process_save_data
 
 class Plugin(CSMPlugin):
     """This plugin removes inactive packages from the device."""
@@ -49,7 +49,7 @@ class Plugin(CSMPlugin):
 
         output = self.ctx.send(cmd, timeout=600)
         observe_install_add_remove(self.ctx, output)
-
+        process_save_data(self.ctx)
         self.ctx.info("Remove All Inactive Package(s) Successfully")
 
         if self.ctx.shell == "Admin":
