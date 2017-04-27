@@ -43,6 +43,7 @@ import time
 import shutil
 import getpass
 import datetime
+import traceback
 from junit_xml import TestSuite, TestCase
 from csmpe.context import InstallContext
 from csmpe.csm_pm import CSMPluginManager
@@ -373,6 +374,7 @@ def jsonparser(config_file, admin_active_console, admin_standby_console,
                 results = pm.dispatch("run")
             except Exception as e:
                 print("ERROR!!!!!!!!!!!! Exception occurred!!! {}".format(e))
+                print(traceback.format_exc())
                 break;    
             finally:       
                 #Retain session.log as they get deleted after each plugin execution
