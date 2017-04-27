@@ -312,6 +312,7 @@ def observe_install_add_remove(ctx, output, has_tar=False):
     RP/0/RSP0/CPU0:CORFU#May 23 22:57:48 Install operation 28 aborted
     """
     result = re.search('nstall operation (\d+)', output)
+    op_id = -1
     if result:
         op_id = result.group(1)
         ctx.operation_id = op_id

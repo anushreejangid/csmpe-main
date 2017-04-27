@@ -284,7 +284,7 @@ def jsonparser(config_file, admin_active_console, admin_standby_console,
         result_data = {}
         result_data['submitter'] = getpass.getuser()
         result_data['start_time'] = datetime.datetime.now().strftime("%Y-%m-%dT%H:%M:%S")
-        result_data['test_suite'] = os.path.splitext(tc_file_org)[0]
+        result_data['test_suite'] = os.path.splitext(os.path.basename(tc_file_org))[0]
         result_data['tcs'] = []
         for idx, tc in enumerate(data, 1):
             result_i = {
