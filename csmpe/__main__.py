@@ -372,7 +372,7 @@ def jsonparser(config_file, admin_active_console, admin_standby_console,
                 results = []
                 results = pm.dispatch("run")
             except Exception as e:
-                print("Exception occurred!!! {}".format(e))
+                print("ERROR!!!!!!!!!!!! Exception occurred!!! {}".format(e))
                 break;    
             finally:       
                 #Retain session.log as they get deleted after each plugin execution
@@ -402,29 +402,32 @@ def convert_result_to_xunit_xml(log_dir_path_list):
     ts_list = []
     for log_dir in log_dir_path_list:
         result_json = os.path.join(log_dir, "result.log")
-        with open(result_json) as fd:
-            result = json.load(fd)
+        try:
+            with open(result_json) as fd:
+                result = json.load(fd)
 
-        tcs_junit = []
+            tcs_junit = []
 
-        for tc in result['tcs']:
-            status = tc['status']
-            testcase = TestCase(name=tc["TC"], classname=tc['tc_id'])
-            if status == 'Passed':
-                testcase.stdout = tc['message']
-            if status == 'Failed':
-                testcase.add_failure_info(message=tc['status'], output=tc['message']) 
-            elif status == 'Blocked':
-                testcase.add_skipped_info(message=tc['status'], output=tc['message']) 
-            elif status == 'Unknown' or status == 'Error':
-                testcase.add_error_info(message=tc['status'], output=tc['message']) 
-            tcs_junit.append(testcase)
+            for tc in result['tcs']:
+                status = tc['status']
+                testcase = TestCase(name=tc["TC"], classname=tc['tc_id'])
+                if status == 'Passed':
+                    testcase.stdout = tc['message']
+                if status == 'Failed':
+                    testcase.add_failure_info(message=tc['status'], output=tc['message']) 
+                elif status == 'Blocked':
+                    testcase.add_skipped_info(message=tc['status'], output=tc['message']) 
+                elif status == 'Unknown' or status == 'Error':
+                    testcase.add_error_info(message=tc['status'], output=tc['message']) 
+                tcs_junit.append(testcase)
 
-        ts = TestSuite(name=result['test_suite'], test_cases=tcs_junit, timestamp=datetime.datetime.now().strftime("%Y-%m-%dT%H:%M:%S"),
-                         properties={ 'submitter': result['submitter'], 'stop_time': result['stop_time']})
+            ts = TestSuite(name=result['test_suite'], test_cases=tcs_junit, timestamp=datetime.datetime.now().strftime("%Y-%m-%dT%H:%M:%S"),
+                             properties={ 'submitter': result['submitter'], 'stop_time': result['stop_time']})
 
-        #print(TestSuite.to_xml_string([ts]))
-        ts_list.append(ts)
+            #print(TestSuite.to_xml_string([ts]))
+            ts_list.append(ts)
+        except:
+            print("ERROR!!! Failed to open {}".format(result_json))
 
     with open('result.xml', 'w') as f:
         TestSuite.to_file(f, ts_list, prettyprint=True)
