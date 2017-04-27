@@ -368,9 +368,9 @@ def jsonparser(config_file, admin_active_console, admin_standby_console,
             ctx.pkg_id = tc.get("pkg_id",[])
             #print("CTX: {}".format(json.dumps(ctx.__dict__, indent=4)))
             try:
+                results = []
                 pm = CSMPluginManager(ctx)
                 pm.set_name_filter(plugin_name)
-                results = []
                 results = pm.dispatch("run")
             except Exception as e:
                 print("ERROR!!!!!!!!!!!! Exception occurred!!! {}".format(e))
