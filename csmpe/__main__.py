@@ -429,7 +429,7 @@ def convert_result_to_xunit_xml(log_dir_path_list):
         except:
             print("ERROR!!! Failed to open {}".format(result_json))
 
-    with open('result.xml', 'w') as f:
+    with open('results.xml', 'w') as f:
         TestSuite.to_file(f, ts_list, prettyprint=True)
 
 if __name__ == '__main__':
