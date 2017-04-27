@@ -63,4 +63,11 @@ class Plugin(CSMPlugin):
             self.ctx.info("Exiting admin mode")
             self.ctx.send("exit", timeout=30)
         self.ctx.send("exit", timeout=30)
+        try:
+            self.ctx.post_status("Trying to disconnect")
+            self.ctx.disconnect()
+            self.ctx.post_status("Disconnected")
+        except:
+            pass
+            
         return True

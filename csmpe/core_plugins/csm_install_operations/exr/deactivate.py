@@ -113,7 +113,13 @@ class Plugin(CSMPlugin):
             self.ctx.info("Switching to admin mode")
             self.ctx.send("exit", timeout=30)
         self.ctx.info("Deactivate package(s) done")
-        
+        try:
+            self.ctx.post_status("Trying to disconnect")
+            self.ctx.disconnect()
+            self.ctx.post_status("Disconnected")
+        except:
+            pass
+                
         # Refresh package and inventory information
         #get_package(self.ctx)
         #get_inventory(self.ctx)

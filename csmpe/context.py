@@ -177,7 +177,10 @@ class PluginContext(object):
         if self.shell == "Admin":
             self.info("Switching to admin mode")
             self.send("exit", timeout=30)
-        self.disconnect()
+        try:
+            self.disconnect()
+        except:
+            pass
         raise PluginError
 
     def warning(self, message):

@@ -311,6 +311,7 @@ def observe_install_add_remove(ctx, output, has_tar=False):
 
     RP/0/RSP0/CPU0:CORFU#May 23 22:57:48 Install operation 28 aborted
     """
+
     result = re.search('nstall operation (\d+)', output)
     op_id = -1
     if result:
@@ -700,21 +701,21 @@ def install_activate_deactivate(ctx, cmd):
     events = [CONTINUE_IN_BACKGROUND, REBOOT_PROMPT, RELOAD_PROMPT, ABORTED, NO_IMPACT, RUN_PROMPT, ERROR, NOT_START, ISSU_PROMPT,
     ADMIN_RELOAD_PROMPT , ADMIN_OP_FAILED, ]
     transitions = [
-        (CONTINUE_IN_BACKGROUND, [0], -1, handle_non_reload_activate_deactivate, 300),
-        (REBOOT_PROMPT, [0], -1, handle_reload_activate_deactivate, 300),
-        (RELOAD_PROMPT, [0], -1, handle_reload_activate_deactivate, 300),
+        (CONTINUE_IN_BACKGROUND, [0], -1, handle_non_reload_activate_deactivate, 900),
+        (REBOOT_PROMPT, [0], -1, handle_reload_activate_deactivate, 900),
+        (RELOAD_PROMPT, [0], -1, handle_reload_activate_deactivate, 900),
         (NO_IMPACT, [0], -1, no_impact_warning, 60),
-        (RUN_PROMPT, [0], -1, handle_non_reload_activate_deactivate, 300),
-        (ABORTED, [0], -1, handle_aborted, 300),
+        (RUN_PROMPT, [0], -1, handle_non_reload_activate_deactivate, 900),
+        (ABORTED, [0], -1, handle_aborted, 900),
         (ERROR, [0], -1, handle_op_after_su, 0),
-        (NOT_START, [0], -1, handle_not_start, 300),
-        (ISSU_PROMPT, [0], -1, handle_issu_reload, 300),
-        (ADMIN_RELOAD_PROMPT, [0], -1, handle_admin_reload, 300),
-        (ADMIN_OP_FAILED, [0], -1, handle_admin_op_failure, 300),
+        (NOT_START, [0], -1, handle_not_start, 900),
+        (ISSU_PROMPT, [0], -1, handle_issu_reload, 900),
+        (ADMIN_RELOAD_PROMPT, [0], -1, handle_admin_reload, 900),
+        (ADMIN_OP_FAILED, [0], -1, handle_admin_op_failure, 900),
 
     ]
 
-    if not ctx.run_fsm("ACTIVATE-OR-DEACTIVATE", cmd, events, transitions, timeout=300):
+    if not ctx.run_fsm("ACTIVATE-OR-DEACTIVATE", cmd, events, transitions, timeout=900):
         ctx.error("Failed: {}".format(cmd))
 
 

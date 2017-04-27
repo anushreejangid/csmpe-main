@@ -138,7 +138,13 @@ class Plugin(CSMPlugin):
         if self.ctx.shell == "Admin":
             self.ctx.info("exiting")
             self.ctx.send("exit", timeout=30)
-        
+        try:
+            self.ctx.post_status("Trying to disconnect")
+            self.ctx.disconnect()
+            self.ctx.post_status("Disconnected")
+        except:
+            pass
+                
         #self.ctx.info("Prepare package(s) done")
         #self.ctx.info("Refreshing package and inventory information")
         #self.ctx.post_status("Refreshing package and inventory information")
