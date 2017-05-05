@@ -150,7 +150,7 @@ class PluginContext(object):
         if self.phase in ["Get-Inventory", "Post-Upgrade"]:
             self.connect(force_discovery=True)
         else:
-            self.connect()
+            self.connect(force_discovery=True)
 
         self.info("Hostname: {}".format(self._connection.hostname))
         self.info("Hardware family: {}".format(self._connection.family))

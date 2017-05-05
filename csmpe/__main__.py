@@ -48,6 +48,7 @@ from junit_xml import TestSuite, TestCase
 from csmpe.context import InstallContext
 from csmpe.csm_pm import CSMPluginManager
 from csmpe.csm_pm import install_phases
+from csmpe.boot_sunstone import BootSunstone
 
 _PLATFORMS = ["ASR9K", "NCS4K", "NCS6K", "CRS", "ASR900"]
 _OS = ["IOS", "XR", "eXR", "XE"]
@@ -211,8 +212,9 @@ def plugin_run(url, phase, cmd, log_dir, package, id,  repository_url, plugin_na
 @click.option("--log_dir", "-l", type=click.Path(),
               help="Log directory. If not specified then default is /tmp")
 @click.option("--tc_loc", "-t", type=click.Path(), help="Test case file/dir location")
-@click.option("--v1_path", "-v1", type=click.Path(), help="Path for v1 packages")
-@click.option("--v2_path", "-v2", type=click.Path(), help="Path for v2 packages")
+@click.option("--pkg_dir", "-pk", type=click.Path(),required=True, envvar='PKG_DIR', help="Location for smu's packages")
+@click.option("--plat", "-p", required=True, help="Platform")
+@click.option("--reimage", "-r",  default=True, help="Reimage")
 def jsonparser(config_file, admin_active_console, admin_standby_console, 
         xr_active_console, xr_standby_console, tc_loc, log_dir, v1_path, v2_path):
     oper_plugin = {
@@ -228,19 +230,33 @@ def jsonparser(config_file, admin_active_console, admin_standby_console,
                   "Node Check" : "Node Status Check Plugin",
                   "Command" : "Custom Commands Capture Plugin",
                   "Prepare" : "Install Prepare Plugin",
-                  "Flow1" : "Install FirexFlow1 Plugin",
                   "Prepare Clean" : "Install Prepare Clean Plugin"
                   }
     tc_list = []
     config = {}
     config['log_dir'] = '/tmp'
     config['tc_loc'] = '/tmp'
+    config['pkg_dir'] = pkg_dir
     if config_file:
         if os.path.isfile(config_file):
            with open(config_file) as fd_config:
                config.update(json.load(fd_config))
         else:
             raise IOError("Error! Config file not found!!")
+    #launch sunstone here if platform is sunstone
+    if plat == "xrv9k" and reimage == True:
+        boot_info = {}
+        boot_info['machine'] = config['machine']
+        boot_info['username'] = config['username']
+        boot_info['password'] = config['password']
+        boot_info['user_dir'] = config_file['user_dir']
+        boot_info['image_path'] = pkg_dir
+        b = BootSunstone()
+        child  = b.copy_to_server(boot_info)
+        ip, port = b.launch_sim(child)
+        b.connect_telnet(ip,port)
+
+    #reimage other nodes using reimage command
     if tc_loc:
         config['tc_loc'] = tc_loc
     if admin_active_console:
