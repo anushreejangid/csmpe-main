@@ -391,7 +391,7 @@ def report_install_status(ctx, op_id=None, output=None):
             ctx.send("admin", timeout=30)
     except:
         pass
-    if op_id:
+    if op_id != -1:
         ctx.operation_id = op_id
         failed_oper = r'failed|aborted|error'
         output = ctx.send("show install log {} detail".format(op_id))
@@ -559,10 +559,13 @@ def no_impact_warning(fsm_ctx):
     plugin_ctx.warning("This was a NO IMPACT OPERATION. Packages are already active/inactive on device.")
     plugin_ctx.info("after {}".format(fsm_ctx.ctrl.after))
     plugin_ctx.info("before {}".format(fsm_ctx.ctrl.before))
+    op_id = -1
     op_id = get_op_id(fsm_ctx.ctrl.before)
     plugin_ctx.info("Op id: {}".format(op_id))
     if plugin_ctx.nextlevel:
         nextlevel_processing(plugin_ctx)
+    #sleep because sometimes console is not given instantly
+    time.sleep(5)
     report_install_status(plugin_ctx, op_id, fsm_ctx.ctrl.after)
     return True
 
@@ -933,14 +936,21 @@ def save_package_names(ctx):
         if ctx.shell == "Admin":
             ctx.info("Switching to admin mode")
             ctx.send("admin", timeout=30)
+
         log_out = ctx.send("show install log {}".format(ctx.operation_id))
-        
-        p = re.compile(r"Package(.*)Action", re.MULTILINE|re.DOTALL)
+        if ctx.shell == "Admin":
+            p = re.compile(r"Package(.*)Install operation", re.MULTILINE|re.DOTALL)
+        else:
+            p = re.compile(r"Package(.*)Action", re.MULTILINE|re.DOTALL)
         if p.search(log_out):
-            ctx.on_box_pkg_names = " ".join([ i.strip().rpartition('  ')[2].strip() for i in p.search(log_out).group().split('\n')[1:-1]])
+            if ctx.shell == "Admin":
+                ctx.on_box_pkg_names = " ".join([ i.strip().rpartition('  ')[2].strip() for i in p.search(log_out).group().split('\n')[1:-1]])
+            else:
+                ctx.on_box_pkg_names = " ".join([ i.strip().rpartition(' ')[2].strip() for i in p.search(log_out).group().split('\n')[1:-1]])
             ctx.post_status("Package list {}".format(ctx.on_box_pkg_names))
             ctx.info("Log output: {}".format(log_out))
         else:
+            ctx.on_box_pkg_names =""
             ctx.info("Log output: {}".format(log_out))
         if ctx.shell == "Admin":
             ctx.info("Exiting from admin mode")
