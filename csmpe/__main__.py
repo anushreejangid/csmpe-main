@@ -44,6 +44,7 @@ import shutil
 import getpass
 import datetime
 import traceback
+import subprocess
 from junit_xml import TestSuite, TestCase
 from csmpe.context import InstallContext
 from csmpe.csm_pm import CSMPluginManager
@@ -212,11 +213,11 @@ def plugin_run(url, phase, cmd, log_dir, package, id,  repository_url, plugin_na
 @click.option("--log_dir", "-l", type=click.Path(),
               help="Log directory. If not specified then default is /tmp")
 @click.option("--tc_loc", "-t", type=click.Path(), help="Test case file/dir location")
-@click.option("--pkg_dir", "-pk", type=click.Path(),required=True, envvar='PKG_DIR', help="Location for smu's packages")
+#@click.option("--pkg_dir", "-pk", type=click.Path(),required=True, envvar='PKG_DIR', help="Location for smu's packages")
 @click.option("--plat", "-p", required=True, help="Platform")
-@click.option("--reimage", "-r",  default=True, help="Reimage")
+@click.option("--reimage", "-r",  default="True", help="Do you wish to reimage?")
 def jsonparser(config_file, admin_active_console, admin_standby_console, 
-        xr_active_console, xr_standby_console, tc_loc, log_dir, v1_path, v2_path):
+        xr_active_console, xr_standby_console, tc_loc, log_dir, plat, reimage):
     oper_plugin = {
                   "Add" : "Install Add Plugin",
                   "Remove" : "Install Remove Plugin",
@@ -236,25 +237,65 @@ def jsonparser(config_file, admin_active_console, admin_standby_console,
     config = {}
     config['log_dir'] = '/tmp'
     config['tc_loc'] = '/tmp'
-    config['pkg_dir'] = pkg_dir
     if config_file:
         if os.path.isfile(config_file):
            with open(config_file) as fd_config:
                config.update(json.load(fd_config))
         else:
             raise IOError("Error! Config file not found!!")
+
+    cmd = "echo {}".format(config['pkg_dir'])
+    pkg_dir = subprocess.check_output(cmd, shell=True).strip().encode("ascii")
+    config['pkg_dir'] = pkg_dir
+
     #launch sunstone here if platform is sunstone
-    if plat == "xrv9k" and reimage == True:
+    user_config_file = os.path.join(config['pkg_dir'], "config_"+plat+".json")
+    if plat == "xrv9k":
         boot_info = {}
-        boot_info['machine'] = config['machine']
-        boot_info['username'] = config['username']
-        boot_info['password'] = config['password']
-        boot_info['user_dir'] = config_file['user_dir']
-        boot_info['image_path'] = pkg_dir
-        b = BootSunstone()
-        child  = b.copy_to_server(boot_info)
-        ip, port = b.launch_sim(child)
-        b.connect_telnet(ip,port)
+        if reimage == "True":
+            boot_info.update(config['xrv9k']['reimage_true'])
+            if os.path.isfile(user_config_file):
+               with open(user_config_file) as fd_config:
+                   boot_info.update(json.load(fd_config))            
+            #get absolute path from config file
+            cmd = "echo {}".format(boot_info['user_dir'])
+            user_dir = subprocess.check_output(cmd, shell=True).strip().encode("ascii")
+            boot_info['user_dir'] = user_dir
+            boot_info['image_path'] = config['pkg_dir'] + '/xrv9k-mini-x.iso'
+            b = BootSunstone()
+            child  = b.copy_to_server(boot_info)
+            ip, port = b.launch_sim(child)
+            # ip = "10.104.99.155"
+            # port = "45023"
+            # b.server_name = "bgl-ipl-4"
+            # b.server_user = "root"
+            # b.server_pass = "cisco123"
+            # b.image_path  = boot_info['image_path']
+            # b.user_dir    = boot_info['user_dir']
+            # b.virbr0_ip   = "192.168.122.1"
+            b.connect_telnet(ip,port)
+            b.config_setup(ip,port)
+            print(config['pkg_dir'])
+            b.copy_packages_to_disk(ip, port, config['pkg_dir'] , "/misc/app_host/ut/")
+            config['xr_active_console'] = "telnet://root:lab@{}:{}".format(ip,port)
+        else:
+            boot_info.update(config['xrv9k']['reimage_false'])
+            if os.path.isfile(user_config_file):
+               with open(user_config_file) as fd_config:
+                   config.update(json.load(fd_config))
+
+    elif plat in [ "ncs5500","ncs1k", "ncs5k", "ncs6k" ]:
+        pxe_info = {}
+        if reimage == "True":
+            pxe_info.update(config[plat]['reimage_true'])
+            if os.path.isfile(user_config_file):
+                with open(user_config_file) as fd_config:
+                    pxe_info.update(json.load(fd_config))
+        else:
+            pxe_info.update(config[plat]['reimage_false'])
+            if os.path.isfile(user_config_file):
+               with open(user_config_file) as fd_config:
+                   config.update(json.load(fd_config))     
 
     #reimage other nodes using reimage command
     if tc_loc:
