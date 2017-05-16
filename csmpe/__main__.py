@@ -245,8 +245,11 @@ def jsonparser(config_file, admin_active_console, admin_standby_console,
             raise IOError("Error! Config file not found!!")
 
     cmd = "echo {}".format(config['pkg_dir'])
-    pkg_dir = subprocess.check_output(cmd, shell=True).strip().encode("ascii")
+    pkg_dir = os.path.join(subprocess.check_output(cmd, shell=True).strip().encode("ascii"), plat)
+    print pkg_dir
     config['pkg_dir'] = pkg_dir
+    if config['tc_loc']:
+        config['tc_loc'] = os.path.join(config['tc_loc'], plat)
 
     #launch sunstone here if platform is sunstone
     user_config_file = os.path.join(config['pkg_dir'], "config_"+plat+".json")
@@ -261,7 +264,7 @@ def jsonparser(config_file, admin_active_console, admin_standby_console,
             cmd = "echo {}".format(boot_info['user_dir'])
             user_dir = subprocess.check_output(cmd, shell=True).strip().encode("ascii")
             boot_info['user_dir'] = user_dir
-            boot_info['image_path'] = config['pkg_dir'] + '/xrv9k-mini-x.iso'
+            boot_info['image_path'] = os.path.join(config['pkg_dir'],'xrv9k-mini-x.iso')
             b = BootSunstone()
             child  = b.copy_to_server(boot_info)
             ip, port = b.launch_sim(child)
@@ -317,7 +320,7 @@ def jsonparser(config_file, admin_active_console, admin_standby_console,
     if os.path.isfile(config['tc_loc']):
         tc_list.append(config['tc_loc'])
     elif os.path.isdir(config['tc_loc']):
-        tc_list = [os.path.join(config['tc_loc'],f) for f in os.listdir(config['tc_loc']) if f.endswith(".json")]
+        tc_list = [os.path.join(config['tc_loc'],f) for f in os.listdir(config['tc_loc']) if f.endswith(".json") and f.startswith("Test")]
 
     if not tc_list:
         raise IOError("Error! No testcase found to run in {}".format(config['tc_loc']))

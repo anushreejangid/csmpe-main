@@ -379,7 +379,7 @@ def report_log(ctx, status, message="No output to match pattern"):
         fd_log.write(json.dumps(data, indent=4))
     ctx.post_status("tc_id: {}, TC: {} :: {}".format(ctx.tc_id, ctx.tc_name, message))
 
-def report_install_status(ctx, op_id=None, output=None):
+def report_install_status(ctx, op_id=-1, output=None):
     """
     :param ctx: CSM Context object
     :param op_id: operational ID
@@ -941,7 +941,7 @@ def save_package_names(ctx):
         if ctx.shell == "Admin":
             p = re.compile(r"Package(.*)Install operation", re.MULTILINE|re.DOTALL)
         else:
-            p = re.compile(r"Package(.*)Action", re.MULTILINE|re.DOTALL)
+            p = re.compile(r"(Package(.*?)Action)", re.MULTILINE|re.DOTALL)
         if p.search(log_out):
             if ctx.shell == "Admin":
                 ctx.on_box_pkg_names = " ".join([ i.strip().rpartition('  ')[2].strip() for i in p.search(log_out).group().split('\n')[1:-1]])
